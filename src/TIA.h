@@ -33,7 +33,7 @@
 enum { TIA_VSYNC, TIA_VBLANK, TIA_HBLANK, TIA_DRAW, TIA_OVERSCAN };
 
 /* COLOR ROM */
-uint32_t color_rom[0x10];
+extern uint32_t color_rom[0x10];
 
 /* METHOD PROTOTYPES */
 void tia_init(TIA* tia);

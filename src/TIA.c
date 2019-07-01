@@ -42,6 +42,25 @@
 #include "MMU.h"
 #include "TIA.h"
 
+uint32_t color_rom[0x10] = {
+    0x7F7F7F, /* Grey */
+    0xFFD700, /* Gold */
+    0xFF8500, /* Orange */
+    0xFF5200, /* Red-orange */
+    0xFF528C, /* Pink */
+    0xFF00FF, /* Purple */
+    0xB500FF, /* Purple-Blue */
+    0x000096, /* Dark Blue */
+    0x3232FF, /* Blue */
+    0x6464FF, /* Light Blue */
+    0x00C8C8, /* Turquoise */
+    0x00C896, /* Green-Blue */
+    0x00C855, /* Green */
+    0x64C800, /* Yellow-Green */
+    0xAFC800, /* Orange-Green */
+    0xFFB464  /* Light-Orange */
+};
+
 /*
  * Given a TIA structure pointer, initialize all of its fields to their
  * appropriate starting values.
@@ -52,7 +71,7 @@
  */
 void tia_init(TIA* tia)
 {
-    memset(tia->pixels, 0, WIDTH * HEIGHT);
+    memset(tia->pixels, 0, WIDTH * HEIGHT * sizeof(uint32_t));
     tia->beam_x = VSYNC_MIN;
     tia->beam_y = VSYNC_MIN;
     tia->tia_state = TIA_VSYNC;
@@ -327,23 +346,4 @@ uint8_t tia_step(CPU* cpu, TIA* tia)
     }
     return r;
 }
-
-uint32_t color_rom[0x10] = {
-    0x7F7F7F, /* Grey */
-    0xFFD700, /* Gold */
-    0xFF8500, /* Orange */
-    0xFF5200, /* Red-orange */
-    0xFF528C, /* Pink */
-    0xFF00FF, /* Purple */
-    0xB500FF, /* Purple-Blue */
-    0x000096, /* Dark Blue */
-    0x3232FF, /* Blue */
-    0x6464FF, /* Light Blue */
-    0x00C8C8, /* Turquoise */
-    0x00C896, /* Green-Blue */
-    0x00C855, /* Green */
-    0x64C800, /* Yellow-Green */
-    0xAFC800, /* Orange-Green */
-    0xFFB464  /* Light-Orange */
-};
 

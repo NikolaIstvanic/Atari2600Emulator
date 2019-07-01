@@ -42,7 +42,7 @@ extern uint16_t (*addressing_rom[0x100])(CPU* cpu);
 /* METHOD PROTOTYPES */
 void cpu_init(CPU* cpu);
 void cpu_step(CPU* cpu);
-inline uint8_t fetch(CPU* cpu);
+uint8_t fetch(CPU* cpu);
 
 /* INSTRUCTION SET PROTOTYPES */
 void ADC(CPU* cpu);

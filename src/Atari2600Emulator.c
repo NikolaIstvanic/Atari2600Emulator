@@ -37,10 +37,8 @@
  *                              ATARI 2600 EMULATOR
  *                                Nikola Istvanic
  *
- * This is our Final Project for the class CS 3210 taught by Timothy Andersen
- * and Kyle Harrigan at The Georgia Institute of Technology, Fall 2017. This
- * program is meant to emulate the hardware and software of an Atari 2600, a
- * popular home video game console during the late 1970s and early 1980s (see
+ * This program is meant to emulate the hardware and software of an Atari 2600,
+ * a popular home video game console during the late 1970s and early 1980s (see
  * https://en.wikipedia.org/wiki/Atari_2600 for more).
  *
  * By creating an environment that programmatically simulates how the hardware
@@ -49,12 +47,6 @@
  * these instructions. This is the aim of this program: seamlessly recreate the
  * environment of the 2600 and have it execute any ROM of machine code
  * instructions.
- *
- * We hope that adding this emulation functionality to JOS proves the operating
- * system's scope and potential. Emulation can be a fairly complicated and
- * expensive operation since it boils down to an endless program which
- * continuously reads input and updates a screen, inner logic, and possibly
- * memory-mapped I/O for sound.
  *
  * This emulator adheres to the following structure: the Atari2600Emulator file
  * initializes an emulated CPU for the processor used in the Atari 2600: the
@@ -66,7 +58,7 @@
  * found in that file until either the program it's running ends or the user
  * wishes to end the emulator (hits the ESC key).
  */
-#include <SDL.h>
+#include <SDL/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -104,7 +96,7 @@ static void load_source(CPU* cpu, const char* rom_path)
 
 static void update_pressed_keys(CPU* cpu)
 {
-    u_int8_t* pressed = SDL_GetKeyState(NULL);
+    uint8_t* pressed = SDL_GetKeyState(NULL);
 
     if (pressed[SDLK_ESCAPE]) {
         exit(EXIT_SUCCESS);

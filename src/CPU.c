@@ -50,6 +50,15 @@ void cpu_init(CPU* cpu)
 }
 
 /*
+ * Fetch the next machine code byte from the CPU's memory at the index pointed
+ * to by the CPU's PC register.
+ */
+uint8_t fetch(CPU* cpu)
+{
+    return read8(cpu, cpu->PC++);
+}
+
+/*
  * Fetch the next instruction from the CPU's memory at the PC, decode it, and
  * execute it. Depending on the instruction, another call or two to fetch may be
  * required as the instruction's parameters.
@@ -65,15 +74,6 @@ void cpu_step(CPU* cpu)
     // printf(" (0x%02X), S = 0x%02X, A = 0x%02X, X = 0x%02X, Y = 0x%02X, "
     //    "P = 0x%02X, Cycles = %d\n", cpu->opcode, cpu->S, cpu->A, cpu->X,
     //    cpu->Y, cpu->P, cpu->cycles);
-}
-
-/*
- * Fetch the next machine code byte from the CPU's memory at the index pointed
- * to by the CPU's PC register.
- */
-inline uint8_t fetch(CPU* cpu)
-{
-    return read8(cpu, cpu->PC++);
 }
 
 /*******************************************************************************

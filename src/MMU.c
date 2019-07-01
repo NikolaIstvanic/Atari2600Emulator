@@ -134,13 +134,9 @@
 
 #include "MMU.h"
 
-const uint16_t NMI_VECTOR = 0xEFFA;
-const uint16_t IRQ_VECTOR = 0xEFFE;
-const uint16_t RESET_VECTOR = 0xEFFC;
-
-const uint16_t NMI_ISR = 0x0810;
-const uint16_t RESET_ISR = 0xF000;
-const uint16_t IRQ_ISR = 0x0812;
+const uint16_t NMI_VECTOR = 0xFFFA;
+const uint16_t IRQ_VECTOR = 0xFFFE;
+const uint16_t RESET_VECTOR = 0xFFFC;
 
 uint8_t wsync = 0;
 uint8_t resp0 = 0;
@@ -156,16 +152,8 @@ uint8_t hmove = 0;
  */
 void mem_init(CPU* cpu)
 {
-    /* Initialize RAM and interrupt vectors */
+    /* Initialize RAM */
      memset(cpu->RAM, 0, SIZE_MEM);
-     write16(cpu, NMI_VECTOR, NMI_ISR);
-     write16(cpu, IRQ_VECTOR, IRQ_ISR);
-     write16(cpu, RESET_VECTOR, RESET_ISR); // point to the start of code
-
-     /* Initialize service routines for NMI and IRQ */
-     write8(cpu, NMI_ISR, 0xEE); // INC (ABS) instruction
-     write16(cpu, NMI_ISR + 1, 0x0814);
-     write8(cpu, IRQ_ISR, 0x40); // RTI instruction
 }
 
 /*******************************************************************************
