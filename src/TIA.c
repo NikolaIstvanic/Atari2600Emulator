@@ -42,23 +42,23 @@
 #include "MMU.h"
 #include "TIA.h"
 
-uint32_t color_rom[0x10] = {
-    0x7F7F7F, /* Grey */
-    0xFFD700, /* Gold */
-    0xFF8500, /* Orange */
-    0xFF5200, /* Red-orange */
-    0xFF528C, /* Pink */
-    0xFF00FF, /* Purple */
-    0xB500FF, /* Purple-Blue */
-    0x000096, /* Dark Blue */
-    0x3232FF, /* Blue */
-    0x6464FF, /* Light Blue */
-    0x00C8C8, /* Turquoise */
-    0x00C896, /* Green-Blue */
-    0x00C855, /* Green */
-    0x64C800, /* Yellow-Green */
-    0xAFC800, /* Orange-Green */
-    0xFFB464  /* Light-Orange */
+uint32_t color_rom[8][16] = {
+    {0x000000, 0x444400, 0x702800, 0x841800, 0x880000, 0x78005C, 0x480078, 0x140084,
+     0x000088, 0x00187C, 0x002C5C, 0x003C2C, 0x003C00, 0x143800, 0x2C3000, 0x442800},
+    {0x404040, 0x646410, 0x844414, 0x983418, 0x9C2020, 0x8C2074, 0x602090, 0x302098,
+     0x1C209C, 0x1C389C, 0x1C4C78, 0x1C5C48, 0x205C20, 0x345C1C, 0x4C501C, 0x644818},
+    {0x6C6C6C, 0x848424, 0x985C28, 0xAC5030, 0xB03C3C, 0xA03C88, 0x783CA4, 0x4C3CAC,
+     0x3840B0, 0x3854AB, 0x386890, 0x387C64, 0x407C40, 0x507C38, 0x687034, 0x846830},
+    {0x909090, 0xA0A034, 0xAC783C, 0xC06848, 0xC05858, 0xB0589C, 0x8C58B8, 0x6858C0,
+     0x505CC0, 0x5070BC, 0x5084AC, 0x509C80, 0x5C9C5C, 0x6C9850, 0x848C4C, 0xA08444},
+    {0xB0B0B0, 0xB8B840, 0xBC8C4C, 0xD0805C, 0xD07070, 0xC070B0, 0xA070B0, 0x7C70D0,
+     0x6874D0, 0x6888CC, 0x689CC0, 0x68B494, 0x74B474, 0x84B468, 0x9CA864, 0xB89C58},
+    {0xC8C8C8, 0xD0D050, 0xCCA05C, 0xE09470, 0xE08888, 0xD084C0, 0xB484DC, 0x9488E0,
+     0x7C8CE0, 0x7C9CDC, 0x7CB4D4, 0x7CD0AC, 0x8CD08C, 0x9CCC7C, 0xB4C078, 0xD0B46C},
+    {0xDCDCDC, 0xE8E85C, 0xDCB468, 0xECA880, 0xECA0A0, 0xDC9CD0, 0xC49CEC, 0xA8A0EC,
+     0x90A4EC, 0x90B4EC, 0x90CCE8, 0x90E4C0, 0xA4E4A4, 0xB4E490, 0xCCD488, 0xE8CC7C},
+    {0xECECEC, 0xFCFC68, 0xECC878, 0xFCBC94, 0xFCBC94, 0xFCB4B4, 0xECB0E0, 0xD4B0FC,
+     0xBCB4FC, 0xA4B8FC, 0xA4C8FC, 0xA4E0FC, 0xA4FCD4, 0xB8FCB8, 0xC8FCA4, 0xE0EC9C}
 };
 
 /*
@@ -100,9 +100,9 @@ static inline uint8_t reverse(uint8_t bits)
  * This method will return the 32-bit color value of which ever value is in the
  * selected color register.
  */
-static inline uint32_t color_lookup(uint8_t value)
+static inline uint32_t color_lookup(uint8_t luminosity, uint8_t color)
 {
-    return color_rom[value];
+    return color_rom[luminosity][color];
 }
 
 /*
@@ -119,8 +119,10 @@ static void draw_playfield(CPU* cpu, TIA* tia)
     /* 20-bit Playfield value formed from PF0, PF1, and PF2 registers */
     uint32_t line = (read8(cpu, PF0) >> 4) | (read8(cpu, PF1) << 4)
         | (read8(cpu, PF2) << 12);
-    uint32_t playfield_color = color_lookup(read8(cpu, COLUPF) >> 4);
-    uint32_t background_color = color_lookup(read8(cpu, COLUBK) >> 4);
+    uint8_t colupf = read8(cpu, COLUPF);
+    uint8_t colubk = read8(cpu, COLUBK);
+    uint32_t playfield_color = color_lookup((colupf & 0xF) >> 1, colupf >> 4);
+    uint32_t background_color = color_lookup((colubk & 0xF) >> 1, colubk >> 4);
     uint16_t y = tia->beam_y - 40;
     int i;
 
@@ -191,7 +193,8 @@ static void draw_player0(CPU* cpu, TIA* tia)
     } else {
         sprite = reverse(read8(cpu, GRP0));
     }
-    uint32_t sprite_color = color_lookup(read8(cpu, COLUP0) >> 4);
+    uint8_t colup0 = read8(cpu, COLUP0);
+    uint32_t sprite_color = color_lookup((colup0 & 0xF) >> 1, colup0 >> 4);
     uint16_t y = tia->beam_y - 40;
 
     for (i = 0; i < 8; i++) {
@@ -214,7 +217,8 @@ static void draw_player1(CPU* cpu, TIA* tia)
     } else {
         sprite = reverse(read8(cpu, GRP1));
     }
-    uint32_t sprite_color = color_lookup(read8(cpu, COLUP1) >> 4);
+    uint8_t colup1 = read8(cpu, COLUP1);
+    uint32_t sprite_color = color_lookup((colup1 & 0xF) >> 1, colup1 >> 4);
     uint16_t y = tia->beam_y - 40;
 
     for (i = 0; i < 8; i++) {
@@ -228,8 +232,9 @@ static inline void draw_missile0(CPU* cpu, TIA* tia)
 {
     int i;
     uint16_t y = tia->beam_y - 40;
+    uint8_t colup0 = read8(cpu, COLUP0);
     uint32_t sprite_color = read8(cpu, COLUP0) & 0x02
-        ? color_lookup(read8(cpu, COLUP0) >> 4)
+        ? color_lookup((colup0 & 0xF) >> 1, colup0 >> 4)
         : tia->pixels[y * WIDTH + tia->beam_x];
     uint8_t size = read8(cpu, NUSIZ0);
     for (i = 0; i < size; i++) {
@@ -241,8 +246,9 @@ static inline void draw_missile1(CPU* cpu, TIA* tia)
 {
     int i;
     uint16_t y = tia->beam_y - 40;
+    uint8_t colup1 = read8(cpu, COLUP1);
     uint32_t sprite_color = read8(cpu, COLUP1) & 0x02
-        ? color_lookup(read8(cpu, COLUP1) >> 4)
+        ? color_lookup((colup1 & 0xF) >> 1, colup1 >> 4)
         : tia->pixels[y * WIDTH + tia->beam_x];
     uint8_t size = read8(cpu, NUSIZ1);
     for (i = 0; i < size; i++) {
