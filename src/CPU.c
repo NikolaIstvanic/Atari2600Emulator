@@ -17,10 +17,23 @@
  *
  * CPU.c: C file which programmatically recreates the Atari 2600's MOS 6502 CPU.
  */
-//#include <stdio.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 #include "CPU.h"
 #include "MMU.h"
+
+//#define DEBUG
+
+static inline void print(const char* format, ...)
+{
+#ifdef DEBUG
+    va_list arg;
+    va_start(arg, format);
+    vfprintf(stdout, format, arg);
+    va_end(arg);
+#endif
+}
 
 /*
  * Given a CPU struct pointer, initialize all of its contents to correct values
@@ -46,7 +59,7 @@ void cpu_init(CPU* cpu)
     cpu->Y = 0x0;
     cpu->PC = read16(cpu, RESET_VECTOR);
     cpu->S = 0xFF;
-    CLRSTATUS(cpu->P);
+    cpu->P = CONSTANT;
 }
 
 /*
@@ -65,15 +78,15 @@ uint8_t fetch(CPU* cpu)
  */
 void cpu_step(CPU* cpu)
 {
-    // printf("PC = 0x%04X: ", cpu->PC);
+    print("PC = 0x%04X: ", cpu->PC);
     /* Fetch next instruction opcode */
     cpu->opcode = fetch(cpu);
     cpu->cycles = cycle_rom[cpu->opcode];
     /* Decode and execute */
     instruction_rom[cpu->opcode](cpu);
-    // printf(" (0x%02X), S = 0x%02X, A = 0x%02X, X = 0x%02X, Y = 0x%02X, "
-    //    "P = 0x%02X, Cycles = %d\n", cpu->opcode, cpu->S, cpu->A, cpu->X,
-    //    cpu->Y, cpu->P, cpu->cycles);
+    print(" (0x%02X), S = 0x%02X, A = 0x%02X, X = 0x%02X, Y = 0x%02X, "
+        "P = 0x%02X, Cycles = %d\n", cpu->opcode, cpu->S, cpu->A, cpu->X,
+        cpu->Y, cpu->P, cpu->cycles);
 }
 
 /*******************************************************************************
@@ -94,8 +107,8 @@ static inline uint16_t relative_offset(uint8_t offset)
  */
 static void set_flags(CPU* cpu, uint8_t value)
 {
-    value ? CLRZERO(cpu->P) : SETZERO(cpu->P);
-    value & SIGN ? SETSIGN(cpu->P) : CLRSIGN(cpu->P);
+    value ? CLEAR(ZERO) : SET(ZERO);
+    value & SIGN ? SET(SIGN) : CLEAR(SIGN);
 }
 
 /*******************************************************************************
@@ -259,20 +272,20 @@ static inline uint16_t ABX(CPU* cpu)
  */
 void ADC(CPU* cpu)
 {
-    // printf("ADC");
+    print("ADC");
     uint8_t operand = cpu->opcode == 0x69 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
     uint16_t sum = cpu->A + (cpu->P & CARRY) + operand;
-    sum & CARRY ? SETCARRY(cpu->P) : CLRCARRY(cpu->P);
+    sum & CARRY ? SET(CARRY) : CLEAR(CARRY);
     set_flags(cpu, sum);
     !((cpu->A ^ operand) & SIGN) && ((cpu->A ^ sum) & SIGN)
-        ? SETOVERFLOW(cpu->P) : CLROVERFLOW(cpu->P);
+        ? SET(OVERFLOW) : CLEAR(OVERFLOW);
     cpu->A = sum;
 }
 
 void AND(CPU* cpu)
 {
-    // printf("AND");
+    print("AND");
     /* IMM addressing mode has next byte as immediate value, not address */
     cpu->A &= cpu->opcode == 0x39 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
@@ -281,16 +294,16 @@ void AND(CPU* cpu)
 
 void ASL(CPU* cpu)
 {
-    // printf("ASL");
+    print("ASL");
     /* Different operand if accumulator addressing mode is used */
     if (cpu->opcode == 0x0A) {
-        cpu->A & SIGN ? SETCARRY(cpu->P) : CLRCARRY(cpu->P);
+        cpu->A & SIGN ? SET(CARRY) : CLEAR(CARRY);
         cpu->A <<= 1;
         set_flags(cpu, cpu->A);
     } else {
         uint16_t address = addressing_rom[cpu->opcode](cpu);
         uint8_t operand = read8(cpu, address);
-        operand & SIGN ? SETCARRY(cpu->P) : CLRCARRY(cpu->P);
+        operand & SIGN ? SET(CARRY) : CLEAR(CARRY);
         operand <<= 1;
         set_flags(cpu, operand);
         write8(cpu, address, operand);
@@ -302,9 +315,9 @@ void ASL(CPU* cpu)
  */
 void BCC(CPU* cpu)
 {
-    // printf("BCC");
+    print("BCC");
     uint8_t offset = addressing_rom[cpu->opcode](cpu);
-    if (!(cpu->P & CARRY)) {
+    if (!ISSET(CARRY)) {
         cpu->PC += relative_offset(offset);
     }
 }
@@ -314,29 +327,29 @@ void BCC(CPU* cpu)
  */
 void BCS(CPU* cpu)
 {
-    // printf("BCS");
+    print("BCS");
     uint8_t offset = addressing_rom[cpu->opcode](cpu);
-    if (cpu->P & CARRY) {
+    if (ISSET(CARRY)) {
         cpu->PC += relative_offset(offset);
     }
 }
 
 void BEQ(CPU* cpu)
 {
-    // printf("BEQ");
+    print("BEQ");
     uint8_t offset = addressing_rom[cpu->opcode](cpu);
-    if (cpu->P & ZERO) {
+    if (ISSET(ZERO)) {
         cpu->PC += relative_offset(offset);
     }
 }
 
 void BIT(CPU* cpu)
 {
-    // printf("BIT");
+    print("BIT");
     uint8_t operand = read8(cpu, addressing_rom[cpu->opcode](cpu));
-    operand & SIGN ? SETSIGN(cpu->P) : CLRSIGN(cpu->P);
-    operand & OVERFLOW ? SETOVERFLOW(cpu->P) : CLROVERFLOW(cpu->P);
-    operand & cpu->A ? CLRZERO(cpu->P) : SETZERO(cpu->P);
+    operand & SIGN ? SET(SIGN) : CLEAR(SIGN);
+    operand & OVERFLOW ? SET(OVERFLOW) : CLEAR(OVERFLOW);
+    operand & cpu->A ? CLEAR(ZERO) : SET(ZERO);
 }
 
 /*
@@ -344,9 +357,9 @@ void BIT(CPU* cpu)
  */
 void BMI(CPU* cpu)
 {
-    // printf("BMI");
+    print("BMI");
     uint8_t offset = addressing_rom[cpu->opcode](cpu);
-    if (cpu->P & SIGN) {
+    if (ISSET(SIGN)) {
         cpu->PC += relative_offset(offset);
     }
 }
@@ -356,9 +369,9 @@ void BMI(CPU* cpu)
  */
 void BNE(CPU* cpu)
 {
-    // printf("BNE");
+    print("BNE");
     uint8_t offset = addressing_rom[cpu->opcode](cpu);
-    if (!(cpu->P & ZERO)) {
+    if (!ISSET(ZERO)) {
         cpu->PC += relative_offset(offset);
     }
 }
@@ -368,21 +381,21 @@ void BNE(CPU* cpu)
  */
 void BPL(CPU* cpu)
 {
-    // printf("BPL");
+    print("BPL");
     uint8_t offset = addressing_rom[cpu->opcode](cpu);
-    if (!(cpu->P & SIGN)) {
+    if (!ISSET(SIGN)) {
         cpu->PC += relative_offset(offset);
     }
 }
 
 void BRK(CPU* cpu)
 {
-    // printf("BRK");
-    SETBREAK(cpu->P);
-    SETCONSTANT(cpu->P);
+    print("BRK");
+    SET(BREAK);
+    SET(CONSTANT);
     push16(cpu, cpu->PC + 1);
     push8(cpu, cpu->P);
-    SETINTERRUPT(cpu->P);
+    SET(INTERRUPT);
     cpu->PC = read16(cpu, IRQ_VECTOR);
 }
 
@@ -391,26 +404,26 @@ void BRK(CPU* cpu)
  */
 void BVC(CPU* cpu)
 {
-    // printf("BVC");
+    print("BVC");
     uint8_t offset = addressing_rom[cpu->opcode](cpu);
-    if (!(cpu->P & OVERFLOW)) {
+    if (!ISSET(OVERFLOW)) {
         cpu->PC += relative_offset(offset);
     }
 }
 
 void BVS(CPU* cpu)
 {
-    // printf("BVS");
+    print("BVS");
     uint8_t offset = addressing_rom[cpu->opcode](cpu);
-    if (cpu->P & OVERFLOW) {
+    if (ISSET(OVERFLOW)) {
         cpu->PC += relative_offset(offset);
     }
 }
 
 void CLC(CPU* cpu)
 {
-    // printf("CLC");
-    CLRCARRY(cpu->P);
+    print("CLC");
+    CLEAR(CARRY);
 }
 
 /*
@@ -418,8 +431,8 @@ void CLC(CPU* cpu)
  */
 void CLD(CPU* cpu)
 {
-    // printf("CLD");
-    CLRDECIMAL(cpu->P);
+    print("CLD");
+    CLEAR(DECIMAL);
 }
 
 /*
@@ -427,8 +440,8 @@ void CLD(CPU* cpu)
  */
 void CLI(CPU* cpu)
 {
-    // printf("CLI");
-    CLRINTERRUPT(cpu->P);
+    print("CLI");
+    CLEAR(INTERRUPT);
 }
 
 /*
@@ -436,43 +449,43 @@ void CLI(CPU* cpu)
  */
 void CLV(CPU* cpu)
 {
-    // printf("CLV");
-    CLROVERFLOW(cpu->P);
+    print("CLV");
+    CLEAR(OVERFLOW);
 }
 
 void CMP(CPU* cpu)
 {
-    // printf("CMP");
+    print("CMP");
     /* IMM means use the next byte as an 8-bit value, not an address */
     uint8_t operand = cpu->opcode == 0xC9 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
-    cpu->A == operand ? SETZERO(cpu->P) : CLRZERO(cpu->P);
-    cpu->A >= operand ? SETCARRY(cpu->P) : CLRCARRY(cpu->P);
+    cpu->A == operand ? SET(ZERO) : CLEAR(ZERO);
+    cpu->A >= operand ? SET(CARRY) : CLEAR(CARRY);
 }
 
 void CPX(CPU* cpu)
 {
-    // printf("CPX");
+    print("CPX");
     /* IMM means use the next byte as an 8-bit value, not an address */
     uint8_t operand = cpu->opcode == 0xE0 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
-    cpu->X == operand ? SETZERO(cpu->P) : CLRZERO(cpu->P);
-    cpu->X >= operand ? SETCARRY(cpu->P) : CLRCARRY(cpu->P);
+    cpu->X == operand ? SET(ZERO) : CLEAR(ZERO);
+    cpu->X >= operand ? SET(CARRY) : CLEAR(CARRY);
 }
 
 void CPY(CPU* cpu)
 {
-    // printf("CPY");
+    print("CPY");
     /* IMM means use the next byte as an 8-bit value, not an address */
     uint8_t operand = cpu->opcode == 0xC0 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
-    cpu->Y == operand ? SETZERO(cpu->P) : CLRZERO(cpu->P);
-    cpu->Y >= operand ? SETCARRY(cpu->P) : CLRCARRY(cpu->P);
+    cpu->Y == operand ? SET(ZERO) : CLEAR(ZERO);
+    cpu->Y >= operand ? SET(CARRY) : CLEAR(CARRY);
 }
 
 void DEC(CPU* cpu)
 {
-    // printf("DEC");
+    print("DEC");
     uint16_t address = addressing_rom[cpu->opcode](cpu);
     uint8_t value = read8(cpu, address) - 1;
     write8(cpu, address, value);
@@ -484,7 +497,7 @@ void DEC(CPU* cpu)
  */
 void DEX(CPU* cpu)
 {
-    // printf("DEX");
+    print("DEX");
     set_flags(cpu, --cpu->X);
 }
 
@@ -493,13 +506,13 @@ void DEX(CPU* cpu)
  */
 void DEY(CPU* cpu)
 {
-    // printf("DEY");
+    print("DEY");
     set_flags(cpu, --cpu->Y);
 }
 
 void EOR(CPU* cpu)
 {
-    // printf("EOR");
+    print("EOR");
     /* Immediate addressing mode returns a value, not an address */
     cpu->A ^= cpu->opcode == 0x49 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
@@ -508,7 +521,7 @@ void EOR(CPU* cpu)
 
 void INC(CPU* cpu)
 {
-    // printf("INC");
+    print("INC");
     uint16_t address = addressing_rom[cpu->opcode](cpu);
     uint8_t value = read8(cpu, address) + 1;
     write8(cpu, address, value);
@@ -520,7 +533,7 @@ void INC(CPU* cpu)
  */
 void INX(CPU* cpu)
 {
-    // printf("INX");
+    print("INX");
     set_flags(cpu, ++cpu->X);
 }
 
@@ -529,7 +542,7 @@ void INX(CPU* cpu)
  */
 void INY(CPU* cpu)
 {
-    // printf("INY");
+    print("INY");
     set_flags(cpu, ++cpu->Y);
 }
 
@@ -538,13 +551,13 @@ void INY(CPU* cpu)
  */
 void JMP(CPU* cpu)
 {
-    // printf("JMP");
+    print("JMP");
     cpu->PC = addressing_rom[cpu->opcode](cpu);
 }
 
 void JSR(CPU* cpu)
 {
-    // printf("JSR");
+    print("JSR");
     /* Push address of next instruction + 1 onto the stack in little endian */
     push16(cpu, cpu->PC + 1);
     cpu->PC = addressing_rom[cpu->opcode](cpu);
@@ -555,7 +568,7 @@ void JSR(CPU* cpu)
  */
 void LDA(CPU* cpu)
 {
-    // printf("LDA");
+    print("LDA");
     /* IMM addressing means A is loaded with next byte, not MEM[next byte] */
     cpu->A = cpu->opcode == 0xA9 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
@@ -567,7 +580,7 @@ void LDA(CPU* cpu)
  */
 void LDX(CPU* cpu)
 {
-    // printf("LDX");
+    print("LDX");
     /* IMM addressing means X is loaded with next byte, not MEM[next byte] */
     cpu->X = cpu->opcode == 0xA2 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
@@ -579,7 +592,7 @@ void LDX(CPU* cpu)
  */
 void LDY(CPU* cpu)
 {
-    // printf("LDY");
+    print("LDY");
     /* IMM addressing mode means next byte is the value for Y, not an address */
     cpu->Y = cpu->opcode == 0xA0 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
@@ -588,16 +601,16 @@ void LDY(CPU* cpu)
 
 void LSR(CPU* cpu)
 {
-    // printf("LSR");
+    print("LSR");
     /* Different operand if accumulator addressing mode is used */
     if (cpu->opcode == 0x4A) {
-        cpu->A & CARRY ? SETCARRY(cpu->P) : CLRCARRY(cpu->P);
+        cpu->A & CARRY ? SET(CARRY) : CLEAR(CARRY);
         cpu->A >>= 1;
         set_flags(cpu, cpu->A);
     } else {
         uint16_t address = addressing_rom[cpu->opcode](cpu);
         uint8_t operand = read8(cpu, address);
-        operand & CARRY ? SETCARRY(cpu->P) : CLRCARRY(cpu->P);
+        operand & CARRY ? SET(CARRY) : CLEAR(CARRY);
         operand >>= 1;
         set_flags(cpu, operand);
         write8(cpu, address, operand);
@@ -606,12 +619,12 @@ void LSR(CPU* cpu)
 
 void NOP(CPU* cpu)
 {
-    // printf("NOP");
+    print("NOP");
 }
 
 void ORA(CPU* cpu)
 {
-    // printf("ORA");
+    print("ORA");
     /* IMM addressing is immediate value, not an address */
     cpu->A |= cpu->opcode == 0x09 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
@@ -623,7 +636,7 @@ void ORA(CPU* cpu)
  */
 void PHA(CPU* cpu)
 {
-    // printf("PHA");
+    print("PHA");
     push8(cpu, cpu->A);
 }
 
@@ -632,13 +645,13 @@ void PHA(CPU* cpu)
  */
 void PHP(CPU* cpu)
 {
-    // printf("PHP");
+    print("PHP");
     push8(cpu, cpu->P);
 }
 
 void PLA(CPU* cpu)
 {
-    // printf("PLA");
+    print("PLA");
     cpu->A = pop8(cpu);
     set_flags(cpu, cpu->A);
 }
@@ -648,7 +661,7 @@ void PLA(CPU* cpu)
  */
 void PLP(CPU* cpu)
 {
-    // printf("PLP");
+    print("PLP");
     cpu->P = pop8(cpu);
 }
 
@@ -657,11 +670,11 @@ void PLP(CPU* cpu)
  */
 void ROL(CPU* cpu)
 {
-    // printf("ROL");
+    print("ROL");
     /* Different operand if accumulator addressing mode is used */
     if (cpu->opcode == 0x2A) {
         uint8_t carry = (cpu->A & SIGN) >> 7;
-        carry ? SETCARRY(cpu->P) : CLRCARRY(cpu->P);
+        carry ? SET(CARRY) : CLEAR(CARRY);
         cpu->A <<= 1;
         cpu->A |= carry;
         set_flags(cpu, cpu->A);
@@ -669,7 +682,7 @@ void ROL(CPU* cpu)
         uint16_t address = addressing_rom[cpu->opcode](cpu);
         uint8_t operand = read8(cpu, address);
         uint8_t carry = (operand & SIGN) >> 7;
-        carry ? SETCARRY(cpu->P) : CLRCARRY(cpu->P);
+        carry ? SET(CARRY) : CLEAR(CARRY);
         operand <<= 1;
         operand |= carry;
         set_flags(cpu, operand);
@@ -679,13 +692,13 @@ void ROL(CPU* cpu)
 
 void ROR(CPU* cpu)
 {
-    // printf("ROR");
+    print("ROR");
     /* Accumulator addressing mode means A is the operand */
     if (cpu->opcode == 0x6A) {
         uint8_t carry = cpu->A & CARRY;
         cpu->A >>= 1;
         cpu->A |= carry << 7;
-        cpu->A & CARRY ? SETCARRY(cpu->P) : CLRCARRY(cpu->P);
+        cpu->A & CARRY ? SET(CARRY) : CLEAR(CARRY);
         set_flags(cpu, cpu->A);
     } else {
         uint16_t address = addressing_rom[cpu->opcode](cpu);
@@ -693,7 +706,7 @@ void ROR(CPU* cpu)
         uint8_t carry = operand & CARRY;
         operand >>= 1;
         operand |= carry << 7;
-        operand & CARRY ? SETCARRY(cpu->P) : CLRCARRY(cpu->P);
+        operand & CARRY ? SET(CARRY) : CLEAR(CARRY);
         set_flags(cpu, operand);
         write8(cpu, address, operand);
     }
@@ -704,7 +717,7 @@ void ROR(CPU* cpu)
  */
 void RTI(CPU* cpu)
 {
-    // printf("RTI");
+    print("RTI");
     cpu->P = pop8(cpu);
     cpu->PC = pop16(cpu);
 }
@@ -714,22 +727,22 @@ void RTI(CPU* cpu)
  */
 void RTS(CPU* cpu)
 {
-    // printf("RTS");
+    print("RTS");
     cpu->PC = pop16(cpu) + 1;
 }
 
 void SBC(CPU* cpu)
 {
-    // printf("SBC");
+    print("SBC");
     /* IMM addressing mode means next byte is value, not address */
     uint8_t operand = cpu->opcode == 0xE9 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
     uint16_t difference = cpu->A - (1 - (cpu->P & CARRY)) - operand;
     set_flags(cpu, difference);
     ((cpu->A ^ difference) & SIGN) && ((cpu->A ^ operand) & SIGN)
-        ? SETOVERFLOW(cpu->P) : CLROVERFLOW(cpu->P);
+        ? SET(OVERFLOW) : CLEAR(OVERFLOW);
     (int16_t) cpu->A - (int16_t) operand - (1 - (cpu->P & CARRY)) < 0x0
-        ? SETCARRY(cpu->P) : CLRCARRY(cpu->P);
+        ? SET(CARRY) : CLEAR(CARRY); 
     cpu->A = difference;
 }
 
@@ -738,37 +751,37 @@ void SBC(CPU* cpu)
  */
 void SEC(CPU* cpu)
 {
-    // printf("SEC");
-    SETCARRY(cpu->P);
+    print("SEC");
+    SET(CARRY);
 }
 
 void SED(CPU* cpu)
 {
-    // printf("SED");
-    SETDECIMAL(cpu->P);
+    print("SED");
+    SET(DECIMAL);
 }
 
 void SEI(CPU* cpu)
 {
-    // printf("SEI");
-    SETINTERRUPT(cpu->P);
+    print("SEI");
+    SET(INTERRUPT);
 }
 
 void STA(CPU* cpu)
 {
-    // printf("STA");
+    print("STA");
     write8(cpu, addressing_rom[cpu->opcode](cpu), cpu->A);
 }
 
 void STX(CPU* cpu)
 {
-    // printf("STX");
+    print("STX");
     write8(cpu, addressing_rom[cpu->opcode](cpu), cpu->X);
 }
 
 void STY(CPU* cpu)
 {
-    // printf("STY");
+    print("STY");
     write8(cpu, addressing_rom[cpu->opcode](cpu), cpu->Y);
 }
 
@@ -777,7 +790,7 @@ void STY(CPU* cpu)
  */
 void TAX(CPU* cpu)
 {
-    // printf("TAX");
+    print("TAX");
     cpu->X = cpu->A;
     set_flags(cpu, cpu->X);
 }
@@ -787,7 +800,7 @@ void TAX(CPU* cpu)
  */
 void TAY(CPU* cpu)
 {
-    // printf("TAY");
+    print("TAY");
     cpu->Y = cpu->A;
     set_flags(cpu, cpu->Y);
 }
@@ -797,7 +810,7 @@ void TAY(CPU* cpu)
  */
 void TSX(CPU* cpu)
 {
-    // printf("TSX");
+    print("TSX");
     cpu->X = cpu->S;
     set_flags(cpu, cpu->X);
 }
@@ -807,7 +820,7 @@ void TSX(CPU* cpu)
  */
 void TXA(CPU* cpu)
 {
-    // printf("TXA");
+    print("TXA");
     cpu->A = cpu->X;
     set_flags(cpu, cpu->A);
 }
@@ -817,7 +830,7 @@ void TXA(CPU* cpu)
  */
 void TYA(CPU* cpu)
 {
-    // printf("TYA");
+    print("TYA");
     cpu->A = cpu->Y;
     set_flags(cpu,cpu->A);
 }
@@ -827,7 +840,7 @@ void TYA(CPU* cpu)
  */
 void TXS(CPU* cpu)
 {
-    // printf("TXS");
+    print("TXS");
     cpu->S = cpu->X;
 }
 

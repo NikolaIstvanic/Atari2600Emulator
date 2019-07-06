@@ -124,7 +124,7 @@ static void refresh_screen(TIA* tia)
 
     /* Secure surface to access pixels */
     SDL_LockSurface(emulator_screen);
-    memcpy(emulator_screen->pixels, tia->pixels, 4 * WIDTH * HEIGHT);
+    memcpy(emulator_screen->pixels, tia->pixels, sizeof(uint32_t) * EMU_WIDTH * EMU_HEIGHT);
 
     /* Release surface */
     SDL_UnlockSurface(emulator_screen);
@@ -142,7 +142,7 @@ static void run(CPU* cpu, TIA* tia)
 
     /* Initialize emulator screen */
     SDL_Init(SDL_INIT_EVERYTHING);
-    SDL_SetVideoMode(WIDTH, HEIGHT, BPP, SDL_HWSURFACE | SDL_DOUBLEBUF);
+    SDL_SetVideoMode(EMU_WIDTH, EMU_HEIGHT, BPP, SDL_HWSURFACE | SDL_DOUBLEBUF);
     static unsigned int x = 0;
 
     while (1) {
@@ -156,7 +156,10 @@ static void run(CPU* cpu, TIA* tia)
         cpu_step(cpu);
 
         /* Perform graphics operation */
-        if (tia_step(cpu, tia) && ++x % 100 == 0) {
+        tia_step(cpu, tia);
+
+        /* TODO: replace this with 60 FPS and refresh rate logic */
+        if (++x % 100 == 0) {
             refresh_screen(tia);
         }
     }

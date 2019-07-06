@@ -135,8 +135,9 @@
 #include "MMU.h"
 
 const uint16_t NMI_VECTOR = 0xFFFA;
-const uint16_t IRQ_VECTOR = 0xFFFE;
 const uint16_t RESET_VECTOR = 0xFFFC;
+const uint16_t IRQ_VECTOR = 0xFFFE;
+const uint16_t RESET_ISR = 0xF000;
 
 uint8_t wsync = 0;
 uint8_t resp0 = 0;
@@ -154,6 +155,8 @@ void mem_init(CPU* cpu)
 {
     /* Initialize RAM */
      memset(cpu->RAM, 0, SIZE_MEM);
+
+     write16(cpu, RESET_VECTOR, RESET_ISR); // point to the start of code
 }
 
 /*******************************************************************************

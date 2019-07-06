@@ -71,9 +71,9 @@ uint32_t color_rom[8][16] = {
  */
 void tia_init(TIA* tia)
 {
-    memset(tia->pixels, 0, WIDTH * HEIGHT * sizeof(uint32_t));
-    tia->beam_x = VSYNC_MIN;
-    tia->beam_y = VSYNC_MIN;
+    memset(tia->pixels, 0, sizeof(uint32_t) * WIDTH * HEIGHT);
+    tia->beam_x = 0;
+    tia->beam_y = 0;
     tia->tia_state = TIA_VSYNC;
 }
 
@@ -188,7 +188,7 @@ static void draw_player0(CPU* cpu, TIA* tia)
 {
     int i;
     uint8_t sprite;
-    if (read8(cpu, REFP0) & 0x10) {
+    if (read8(cpu, REFP0) & 0x8) {
         sprite = read8(cpu, GRP0);
     } else {
         sprite = reverse(read8(cpu, GRP0));
@@ -212,7 +212,7 @@ static void draw_player1(CPU* cpu, TIA* tia)
 {
     int i;
     uint8_t sprite;
-    if (read8(cpu, REFP1) & 0x10) {
+    if (read8(cpu, REFP1) & 0x8) {
         sprite = read8(cpu, GRP1);
     } else {
         sprite = reverse(read8(cpu, GRP1));
@@ -230,6 +230,10 @@ static void draw_player1(CPU* cpu, TIA* tia)
 
 static inline void draw_missile0(CPU* cpu, TIA* tia)
 {
+    if (!(read8(cpu, ENAM0) & 0x2)) {
+        return;
+    }
+
     int i;
     uint16_t y = tia->beam_y - 40;
     uint8_t colup0 = read8(cpu, COLUP0);
@@ -244,6 +248,10 @@ static inline void draw_missile0(CPU* cpu, TIA* tia)
 
 static inline void draw_missile1(CPU* cpu, TIA* tia)
 {
+    if (!(read8(cpu, ENAM1) & 0x2)) {
+        return;
+    }
+
     int i;
     uint16_t y = tia->beam_y - 40;
     uint8_t colup1 = read8(cpu, COLUP1);
@@ -261,95 +269,145 @@ static inline void draw_missile1(CPU* cpu, TIA* tia)
  * position after the CPU's current instruction has executed and check to see
  * whether any draw operations need to be performed.
  */
-uint8_t tia_step(CPU* cpu, TIA* tia)
+void tia_step(CPU* cpu, TIA* tia)
 {
-    uint8_t r = 0;
-    tia->beam_x += 3 * cpu->cycles;
-
     if (read8(cpu, VSYNC) & 0x02) {
-        tia->beam_x = VSYNC_MIN;
-        tia->beam_y = VSYNC_MIN;
+        tia->beam_x = 0;
+        tia->beam_y = 0;
         tia->tia_state = TIA_VSYNC;
     } else if (read8(cpu, VBLANK) & 0x02) {
-        tia->beam_x = VSYNC_MIN;
+        tia->beam_x = 0;
         tia->beam_y = VBLANK_MIN;
         tia->tia_state = TIA_VBLANK;
     } else if (wsync) {
         wsync = 0;
-        if (IN_DRAW_Y(tia->beam_y)) {
+        if (DRAW_Y_MIN <= tia->beam_y && tia->beam_y <= DRAW_Y_MAX) {
             draw_playfield(cpu, tia);
             draw_player0(cpu, tia);
             draw_player1(cpu, tia);
-            if (read8(cpu, ENAM0) & 0x02) {
-                draw_missile0(cpu, tia);
-            }
-            if (read8(cpu, ENAM1) & 0x02) {
-                draw_missile1(cpu, tia);
-            }
-            r = 1;
+            draw_missile0(cpu, tia);
+            draw_missile1(cpu, tia);
         }
-        if (tia->beam_y < MAX_Y) {
-            tia->beam_y++;
+        tia->beam_y++;
+        tia->beam_x = 0;
+
+        if (tia->beam_y >= MAX_Y) {
+            tia->beam_y = 0;
+            tia->tia_state = TIA_VSYNC;
+        } else if (tia->beam_y >= DRAW_Y_MAX) {
+            tia->tia_state = TIA_OVERSCAN;
+        } else if (tia->beam_y >= DRAW_Y_MIN) {
+            tia->tia_state = TIA_HBLANK;
+        } else if (tia->beam_y >= VBLANK_MIN) {
+            tia->tia_state = TIA_VBLANK;
+        } else {
+            tia->tia_state = TIA_VSYNC;
         }
-        tia->beam_x = DRAW_X_MIN;
-        tia->tia_state = TIA_HBLANK;
+        //return;
     } else if (resp0) {
         resp0 = 0;
-        if (IN_DRAW_Y(tia->beam_y)) {
+        if (tia->tia_state == TIA_DRAW) {
             draw_player0(cpu, tia);
-            r = 1;
+        } else if (tia->tia_state == TIA_HBLANK) {
+            uint8_t old_x = tia->beam_x;
+            tia->beam_x = DRAW_X_MIN + 3;
+            draw_player0(cpu, tia);
+            tia->beam_x = old_x;
         }
     } else if (resp1) {
         resp1 = 0;
-        if (IN_DRAW_Y(tia->beam_y)) {
+        if (tia->tia_state == TIA_DRAW) {
             draw_player1(cpu, tia);
-            r = 1;
+        } else if (tia->tia_state == TIA_HBLANK) {
+            uint8_t old_x = tia->beam_x;
+            tia->beam_x = DRAW_X_MIN + 3;
+            draw_player1(cpu, tia);
+            tia->beam_x = old_x;
         }
     } else if (resm0) {
         resm0 = 0;
-        if (IN_DRAW_Y(tia->beam_y) && (read8(cpu, ENAM0) & 0x02)) {
+        if (tia->tia_state == TIA_DRAW) {
             draw_missile0(cpu, tia);
-            r = 1;
+        } else if (tia->tia_state == TIA_HBLANK) {
+            uint8_t old_x = tia->beam_x;
+            tia->beam_x = DRAW_X_MIN + 2;
+            draw_missile0(cpu, tia);
+            tia->beam_x = old_x;
         }
     } else if (resm1) {
         resm1 = 0;
-        if (IN_DRAW_Y(tia->beam_y) && (read8(cpu, ENAM1) & 0x02)) {
+        if (tia->tia_state == TIA_DRAW) {
             draw_missile1(cpu, tia);
-            r = 1;
+        } else if (tia->tia_state == TIA_HBLANK) {
+            uint8_t old_x = tia->beam_x;
+            tia->beam_x = DRAW_X_MIN + 2;
+            draw_missile1(cpu, tia);
+            tia->beam_x = old_x;
         }
-    } else {
-        if (IN_VSYNC(tia->beam_y)) {
-            tia->tia_state = TIA_VSYNC;
-        } else if (IN_VBLANK(tia->beam_y)) {
-            tia->tia_state = TIA_VBLANK;
-        } else if (IN_DRAW_Y(tia->beam_y)) {
-            if (IN_HBLANK(tia->beam_x)) {
-                tia->tia_state = TIA_HBLANK;
-            } else if (IN_DRAW_X(tia->beam_x)) {
-                tia->tia_state = TIA_DRAW;
-                draw_playfield(cpu, tia);
-                draw_player0(cpu, tia);
-                draw_player1(cpu, tia);
-                if (IN_DRAW_Y(tia->beam_y) && (read8(cpu, ENAM0) & 0x02)) {
-                    draw_missile0(cpu, tia);
-                }
-                if (IN_DRAW_Y(tia->beam_y) && (read8(cpu, ENAM1) & 0x02)) {
-                    draw_missile1(cpu, tia);
-                }
-                r = 1;
-            }
-        } else {
-            tia->tia_state = TIA_OVERSCAN;
-        }
-        if (tia->beam_x >= MAX_X) {
-            tia->beam_x %= MAX_X;
-            if (tia->beam_y < MAX_Y) {
-                tia->beam_y++;
-            } else {
-                tia->beam_y %= MAX_Y;
-            }
-        }
+    } else if (resbl) {
+        resbl = 0;
     }
-    return r;
+
+    tia->beam_x += 3 * cpu->cycles;
+
+    switch (tia->tia_state) {
+        case TIA_VSYNC:
+            if (tia->beam_x >= MAX_X) {
+                tia->beam_x %= MAX_X;
+                tia->beam_y++;
+            
+                if (tia->beam_y >= VBLANK_MIN) {
+                    tia->tia_state = TIA_VBLANK;
+                }
+            }
+            break;
+
+        case TIA_VBLANK:
+            if (tia->beam_x >= MAX_X) {
+                tia->beam_x %= MAX_X;
+                tia->beam_y++;
+
+                if (tia->beam_y >= DRAW_Y_MIN) {
+                    tia->tia_state = TIA_HBLANK;
+                }
+            }
+            break;
+
+        case TIA_HBLANK:
+            if (tia->beam_x >= DRAW_X_MIN) {
+                tia->tia_state = TIA_DRAW;
+            }
+            break;
+
+        case TIA_DRAW:
+            if (tia->beam_x >= MAX_X) {
+                tia->beam_x %= MAX_X;
+                tia->beam_y++;
+
+                if (tia->beam_y >= DRAW_Y_MAX) {
+                    tia->tia_state = TIA_OVERSCAN;
+                } else {
+                    tia->tia_state = TIA_HBLANK;
+                }
+            }
+            draw_playfield(cpu, tia);
+            draw_player0(cpu, tia);
+            draw_player1(cpu, tia);
+            draw_missile0(cpu, tia);
+            draw_missile1(cpu, tia);
+            break;
+
+        case TIA_OVERSCAN:
+            if (tia->beam_x >= MAX_X) {
+                tia->beam_x %= MAX_X;
+                tia->beam_y++;
+
+                if (tia->beam_y >= MAX_Y) {
+                    tia->beam_y %= MAX_Y;
+                    tia->tia_state = TIA_VSYNC;
+                }
+            }
+            break;
+    }
 }
 

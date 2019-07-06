@@ -6,33 +6,19 @@
 
 /* DEFINES */
 /* STATUS REGISTER FLAGS */
-#define SIGN      0x80
-#define OVERFLOW  0x40
-#define CONSTANT  0x20
-#define BREAK     0x10
-#define DECIMAL   0x08
+#define SIGN 0x80
+#define OVERFLOW 0x40
+#define CONSTANT 0x20
+#define BREAK 0x10
+#define DECIMAL 0x08
 #define INTERRUPT 0x04
-#define ZERO      0x02
-#define CARRY     0x01
+#define ZERO 0x02
+#define CARRY 0x01
 
 /* STATUS REGISTER MACROS */
-#define SETSIGN(P)      ((P) |= SIGN)
-#define CLRSIGN(P)      ((P) &= ~SIGN)
-#define SETOVERFLOW(P)  ((P) |= OVERFLOW)
-#define CLROVERFLOW(P)  ((P) &= ~OVERFLOW)
-#define SETCONSTANT(P)  ((P) |= CONSTANT)
-#define CLRCONSTANT(P)  ((P) &= ~CONSTANT)
-#define SETBREAK(P)     ((P) |= BREAK)
-#define CLRBREAK(P)     ((P) &= ~BREAK)
-#define SETDECIMAL(P)   ((P) |= DECIMAL)
-#define CLRDECIMAL(P)   ((P) &= ~DECIMAL)
-#define SETINTERRUPT(P) ((P) |= INTERRUPT)
-#define CLRINTERRUPT(P) ((P) &= ~INTERRUPT)
-#define SETZERO(P)      ((P) |= ZERO)
-#define CLRZERO(P)      ((P) &= ~ZERO)
-#define SETCARRY(P)     ((P) |= CARRY)
-#define CLRCARRY(P)     ((P) &= ~CARRY)
-#define CLRSTATUS(P)    (P) &= 0; (P) |= CONSTANT;
+#define ISSET(_flag) (cpu->P & (_flag))
+#define SET(_flag) (cpu->P |= (_flag))
+#define CLEAR(_flag) (cpu->P &= ~(_flag))
 
 /* ROMs */
 extern uint8_t cycle_rom[0x100];

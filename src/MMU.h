@@ -45,11 +45,6 @@ extern const uint16_t NMI_VECTOR;
 extern const uint16_t IRQ_VECTOR;
 extern const uint16_t RESET_VECTOR;
 
-/* INTERRUPT SERVICE ROUTINE ADDRESSES */
-extern const uint16_t NMI_ISR;
-extern const uint16_t RESET_ISR;
-extern const uint16_t IRQ_ISR;
-
 /* MEMORY METHOD PROTOTYPES */
 void mem_init(CPU* cpu);
 uint8_t read8(CPU* cpu, uint16_t address);
