@@ -7,13 +7,10 @@
 /* DEFINES */
 #define MAX_X 228
 #define MAX_Y 262
-#define VSYNC_MAX 2
 #define VBLANK_MIN 3
-#define VBLANK_MAX 39
-#define HBLANK_MAX 67
-#define DRAW_X_MIN 68
-#define DRAW_Y_MIN 40
-#define DRAW_Y_MAX 231
+#define VBLANK_MAX 40
+#define HBLANK_MAX 68
+#define DRAW_MAX 232
 
 /* ENUM */
 enum { TIA_VSYNC, TIA_VBLANK, TIA_HBLANK, TIA_DRAW, TIA_OVERSCAN };

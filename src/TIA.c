@@ -42,6 +42,12 @@
 #include "MMU.h"
 #include "TIA.h"
 
+// TODO: remove magic numbers
+static uint8_t p0x = 120;
+static uint8_t p1x = 200;
+static uint8_t m0x = 220;
+static uint8_t m1x = 10;
+
 uint32_t color_rom[8][16] = {
     {0x000000, 0x444400, 0x702800, 0x841800, 0x880000, 0x78005C, 0x480078, 0x140084,
      0x000088, 0x00187C, 0x002C5C, 0x003C2C, 0x003C00, 0x143800, 0x2C3000, 0x442800},
@@ -123,7 +129,7 @@ static void draw_playfield(CPU* cpu, TIA* tia)
     uint8_t colubk = read8(cpu, COLUBK);
     uint32_t playfield_color = color_lookup((colupf & 0xF) >> 1, colupf >> 4);
     uint32_t background_color = color_lookup((colubk & 0xF) >> 1, colubk >> 4);
-    uint16_t y = tia->beam_y - 40;
+    uint16_t y = tia->beam_y - VBLANK_MAX;
     int i;
 
     /* Draw left half of the screen */
@@ -143,40 +149,24 @@ static void draw_playfield(CPU* cpu, TIA* tia)
     }
 
     /* Draw right half of the screen */
-    if (read8(cpu, CTRLPF) & 0x1) {
-        /* Mirror */
-        for (i = 0; i < 20; i++) {
+    for (i = 0; i < 20; i++) {
+        if (read8(cpu, CTRLPF) & 0x1) {
+            /* Mirror */
             line = (reverse(read8(cpu, PF0)) << 16) | (read8(cpu, PF1) << 8)
-                    | reverse(read8(cpu, PF2));
-            uint32_t clr = (line >> i) & 0x1 ? playfield_color
-                : background_color;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40)] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 1] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 2] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 3] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 4] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 5] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 6] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 7] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 8] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 9] = clr;
+                | reverse(read8(cpu, PF2));
         }
-    } else {
-        /* Normal repeat */
-        for (i = 0; i < 20; i++) {
-            uint32_t clr = (line >> i) & 0x1 ? playfield_color
-                : background_color;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40)] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 1] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 2] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 3] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 4] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 5] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 6] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 7] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 8] = clr;
-            tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 9] = clr;
-        }
+        uint32_t clr = (line >> i) & 0x1 ? playfield_color
+            : background_color;
+        tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40)] = clr;
+        tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 1] = clr;
+        tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 2] = clr;
+        tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 3] = clr;
+        tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 4] = clr;
+        tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 5] = clr;
+        tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 6] = clr;
+        tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 7] = clr;
+        tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 8] = clr;
+        tia->pixels[y * WIDTH + (i + WIDTH / 20) * (WIDTH / 40) + 9] = clr;
     }
 }
 
@@ -195,12 +185,12 @@ static void draw_player0(CPU* cpu, TIA* tia)
     }
     uint8_t colup0 = read8(cpu, COLUP0);
     uint32_t sprite_color = color_lookup((colup0 & 0xF) >> 1, colup0 >> 4);
-    uint16_t y = tia->beam_y - 40;
+    uint16_t y = tia->beam_y - VBLANK_MAX;
 
     for (i = 0; i < 8; i++) {
         uint32_t color = (sprite >> i) & 0x1 ? sprite_color
-            : tia->pixels[y * WIDTH + tia->beam_x];
-        tia->pixels[y * WIDTH + tia->beam_x++] = color;
+            : tia->pixels[y * WIDTH + p0x + i];
+        tia->pixels[y * WIDTH + p0x + i] = color;
     }
 }
 
@@ -219,12 +209,12 @@ static void draw_player1(CPU* cpu, TIA* tia)
     }
     uint8_t colup1 = read8(cpu, COLUP1);
     uint32_t sprite_color = color_lookup((colup1 & 0xF) >> 1, colup1 >> 4);
-    uint16_t y = tia->beam_y - 40;
+    uint16_t y = tia->beam_y - VBLANK_MAX;
 
     for (i = 0; i < 8; i++) {
         uint32_t color = (sprite >> i) & 0x1 ? sprite_color
-            : tia->pixels[y * WIDTH + tia->beam_x];
-        tia->pixels[y * WIDTH + tia->beam_x++] = color;
+            : tia->pixels[y * WIDTH + p1x + i];
+        tia->pixels[y * WIDTH + p1x + i] = color;
     }
 }
 
@@ -235,14 +225,14 @@ static inline void draw_missile0(CPU* cpu, TIA* tia)
     }
 
     int i;
-    uint16_t y = tia->beam_y - 40;
+    uint16_t y = tia->beam_y - VBLANK_MAX;
     uint8_t colup0 = read8(cpu, COLUP0);
     uint32_t sprite_color = read8(cpu, COLUP0) & 0x02
         ? color_lookup((colup0 & 0xF) >> 1, colup0 >> 4)
-        : tia->pixels[y * WIDTH + tia->beam_x];
+        : tia->pixels[y * WIDTH + m0x];
     uint8_t size = read8(cpu, NUSIZ0);
     for (i = 0; i < size; i++) {
-        tia->pixels[y * WIDTH + tia->beam_x + i] = sprite_color;
+        tia->pixels[y * WIDTH + m0x + i] = sprite_color;
     }
 }
 
@@ -253,14 +243,14 @@ static inline void draw_missile1(CPU* cpu, TIA* tia)
     }
 
     int i;
-    uint16_t y = tia->beam_y - 40;
+    uint16_t y = tia->beam_y - VBLANK_MAX;
     uint8_t colup1 = read8(cpu, COLUP1);
     uint32_t sprite_color = read8(cpu, COLUP1) & 0x02
         ? color_lookup((colup1 & 0xF) >> 1, colup1 >> 4)
-        : tia->pixels[y * WIDTH + tia->beam_x];
+        : tia->pixels[y * WIDTH + m1x];
     uint8_t size = read8(cpu, NUSIZ1);
     for (i = 0; i < size; i++) {
-        tia->pixels[y * WIDTH + tia->beam_x + i] = sprite_color;
+        tia->pixels[y * WIDTH + m1x + i] = sprite_color;
     }
 }
 
@@ -281,7 +271,7 @@ void tia_step(CPU* cpu, TIA* tia)
         tia->tia_state = TIA_VBLANK;
     } else if (wsync) {
         wsync = 0;
-        if (DRAW_Y_MIN <= tia->beam_y && tia->beam_y <= DRAW_Y_MAX) {
+        if (VBLANK_MAX <= tia->beam_y && tia->beam_y < DRAW_MAX) {
             draw_playfield(cpu, tia);
             draw_player0(cpu, tia);
             draw_player1(cpu, tia);
@@ -294,55 +284,51 @@ void tia_step(CPU* cpu, TIA* tia)
         if (tia->beam_y >= MAX_Y) {
             tia->beam_y = 0;
             tia->tia_state = TIA_VSYNC;
-        } else if (tia->beam_y >= DRAW_Y_MAX) {
+        } else if (tia->beam_y >= DRAW_MAX) {
             tia->tia_state = TIA_OVERSCAN;
-        } else if (tia->beam_y >= DRAW_Y_MIN) {
+        } else if (tia->beam_y >= VBLANK_MAX) {
             tia->tia_state = TIA_HBLANK;
         } else if (tia->beam_y >= VBLANK_MIN) {
             tia->tia_state = TIA_VBLANK;
         } else {
             tia->tia_state = TIA_VSYNC;
         }
-        //return;
+        //return; // TODO: determine if this return is needed
     } else if (resp0) {
         resp0 = 0;
         if (tia->tia_state == TIA_DRAW) {
+            p0x = tia->beam_x;
             draw_player0(cpu, tia);
         } else if (tia->tia_state == TIA_HBLANK) {
-            uint8_t old_x = tia->beam_x;
-            tia->beam_x = DRAW_X_MIN + 3;
+            p0x = HBLANK_MAX + 3;
             draw_player0(cpu, tia);
-            tia->beam_x = old_x;
         }
     } else if (resp1) {
         resp1 = 0;
         if (tia->tia_state == TIA_DRAW) {
+            p1x = tia->beam_x;
             draw_player1(cpu, tia);
         } else if (tia->tia_state == TIA_HBLANK) {
-            uint8_t old_x = tia->beam_x;
-            tia->beam_x = DRAW_X_MIN + 3;
+            p1x = HBLANK_MAX + 3;
             draw_player1(cpu, tia);
-            tia->beam_x = old_x;
         }
     } else if (resm0) {
         resm0 = 0;
         if (tia->tia_state == TIA_DRAW) {
+            m0x = tia->beam_x;
             draw_missile0(cpu, tia);
         } else if (tia->tia_state == TIA_HBLANK) {
-            uint8_t old_x = tia->beam_x;
-            tia->beam_x = DRAW_X_MIN + 2;
+            m0x = HBLANK_MAX + 2;
             draw_missile0(cpu, tia);
-            tia->beam_x = old_x;
         }
     } else if (resm1) {
         resm1 = 0;
         if (tia->tia_state == TIA_DRAW) {
+            m1x = tia->beam_x;
             draw_missile1(cpu, tia);
         } else if (tia->tia_state == TIA_HBLANK) {
-            uint8_t old_x = tia->beam_x;
-            tia->beam_x = DRAW_X_MIN + 2;
+            m1x = HBLANK_MAX + 2;
             draw_missile1(cpu, tia);
-            tia->beam_x = old_x;
         }
     } else if (resbl) {
         resbl = 0;
@@ -367,14 +353,14 @@ void tia_step(CPU* cpu, TIA* tia)
                 tia->beam_x %= MAX_X;
                 tia->beam_y++;
 
-                if (tia->beam_y >= DRAW_Y_MIN) {
+                if (tia->beam_y >= VBLANK_MAX) {
                     tia->tia_state = TIA_HBLANK;
                 }
             }
             break;
 
         case TIA_HBLANK:
-            if (tia->beam_x >= DRAW_X_MIN) {
+            if (tia->beam_x >= HBLANK_MAX) {
                 tia->tia_state = TIA_DRAW;
             }
             break;
@@ -384,8 +370,9 @@ void tia_step(CPU* cpu, TIA* tia)
                 tia->beam_x %= MAX_X;
                 tia->beam_y++;
 
-                if (tia->beam_y >= DRAW_Y_MAX) {
+                if (tia->beam_y >= DRAW_MAX) {
                     tia->tia_state = TIA_OVERSCAN;
+                    break;
                 } else {
                     tia->tia_state = TIA_HBLANK;
                 }
