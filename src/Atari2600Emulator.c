@@ -61,10 +61,29 @@
 #include <SDL/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+
+#include <GL/gl.h>
+#include <GL/glx.h>
+#include <GL/glu.h>
+
+#include <X11/X.h>
+#include <X11/Xlib.h>
+#include <X11/keysym.h>
 
 #include "CPU.h"
 #include "MMU.h"
 #include "TIA.h"
+
+#define WINDOW_WIDTH (WIDTH * 2)
+#define WINDOW_HEIGHT (HEIGHT * 2)
+
+Display* dpy;
+Window win;
+GLXContext glc;
+struct timespec frameStart;
 
 /*
  * Input keys for the Atari 2600 emulator. The standard Atari 2600 controller is
@@ -94,41 +113,77 @@ static void load_source(CPU* cpu, const char* rom_path)
     }
 }
 
-static void update_pressed_keys(CPU* cpu)
+static void update_pressed_keys()
 {
-    uint8_t* pressed = SDL_GetKeyState(NULL);
+    XEvent xev;
 
-    if (pressed[SDLK_ESCAPE]) {
-        exit(EXIT_SUCCESS);
-    }
+    if (XPending(dpy)) {
+        XNextEvent(dpy, &xev);
+        if (xev.xkey.type == KeyPress) {
+            switch (xev.xkey.keycode) {
+                /*
+                // z = B
+                case 52:
+                    buttons = CLEARBIT(buttons, BUTTON_B);
+                    break;
 
-    /* Handle hitting the reset button */
-    if (pressed[SDLK_r]) {
-        cpu->PC = read16(cpu, RESET_VECTOR);
-    }
+                // Left = left
+                case 113:
+                    dpad = CLEARBIT(dpad, BUTTON_LEFT);
+                    break;
 
-    /*
-    for (int i = 0; i < 5; i++) {
-        // TOOD: handle user input
+                // Right = right
+                case 114:
+                    dpad = CLEARBIT(dpad, BUTTON_RIGHT);
+                    break;
+
+                // Up = up
+                case 111:
+                    dpad = CLEARBIT(dpad, BUTTON_UP);
+                    break;
+
+                // Down = down
+                case 116:
+                    dpad = CLEARBIT(dpad, BUTTON_DOWN);
+                    break;
+                */
+
+                // ESC = quit
+                case 9:
+                    glXMakeCurrent(dpy, None, NULL);
+                    glXDestroyContext(dpy, glc);
+                    XDestroyWindow(dpy, win);
+                    XCloseDisplay(dpy);
+                    exit(EXIT_SUCCESS);
+                    break;
+            }
+        }
     }
-    */
 }
 
-/*
- * Method which updates the SDL screen pixels based on the contents of the TIA
- * pixel array only whenever pixels of the screen have been changed by the CPU.
- */
 static void refresh_screen(TIA* tia)
 {
-    SDL_Surface* emulator_screen = SDL_GetVideoSurface();
+    struct timespec frameEnd;
+    long seconds, useconds;
+    uint32_t mtime;
 
-    /* Secure surface to access pixels */
-    SDL_LockSurface(emulator_screen);
-    memcpy(emulator_screen->pixels, tia->pixels, sizeof(uint32_t) * EMU_WIDTH * EMU_HEIGHT);
+    glClear(GL_COLOR_BUFFER_BIT);
+    GLint iViewport[4];
+    glGetIntegerv(GL_VIEWPORT, iViewport);
+    glRasterPos2f(-1, 1);
+    glPixelZoom(iViewport[2] / WIDTH, -iViewport[3] / HEIGHT);
+    glDrawPixels(WIDTH, HEIGHT, GL_RGBA, GL_UNSIGNED_BYTE, tia->pixels);
+    glXSwapBuffers(dpy, win);
 
-    /* Release surface */
-    SDL_UnlockSurface(emulator_screen);
-    SDL_Flip(emulator_screen);
+    clock_gettime(CLOCK_MONOTONIC, &frameEnd);
+    seconds = frameEnd.tv_sec - frameStart.tv_sec;
+    useconds = frameEnd.tv_nsec - frameStart.tv_nsec;
+    mtime = seconds * 1000000 + useconds;
+
+    if (0 < mtime && mtime < 16666) {
+        usleep(16666 - mtime);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &frameStart);
 }
 
 /*
@@ -138,29 +193,24 @@ static void refresh_screen(TIA* tia)
  */
 static void run(CPU* cpu, TIA* tia)
 {
-    SDL_Event e;
-
-    /* Initialize emulator screen */
-    SDL_Init(SDL_INIT_EVERYTHING);
-    SDL_SetVideoMode(EMU_WIDTH, EMU_HEIGHT, BPP, SDL_HWSURFACE | SDL_DOUBLEBUF);
     static unsigned int x = 0;
 
+    clock_gettime(CLOCK_MONOTONIC, &frameStart);
+    
     while (1) {
-        if (SDL_PollEvent(&e)) {
-            continue;
-        }
-
-        update_pressed_keys(cpu);
-
         /* Execute one instruction */
         cpu_step(cpu);
 
         /* Perform graphics operation */
         tia_step(cpu, tia);
 
-        /* TODO: replace this with 60 FPS and refresh rate logic */
-        if (++x % 100 == 0) {
+        if (tia->beam_y == DRAW_MAX) {
+            update_pressed_keys(cpu);
             refresh_screen(tia);
+        }
+        
+        if (++x == 1160) {
+            //exit(1);
         }
     }
 }
@@ -184,11 +234,38 @@ int main(int argc, char* argv[])
 
     CPU cpu;
     TIA tia;
+    Window root;
+    GLint att[] = { GLX_RGBA, GLX_DOUBLEBUFFER };
+    XVisualInfo* vi;
+    Colormap cmap;
+    XSetWindowAttributes swa;
+    
+    dpy = XOpenDisplay(NULL);
+    if (!dpy) {
+        printf("Cannot connect to X server\n");
+        exit(EXIT_FAILURE);
+    }
+    root = DefaultRootWindow(dpy);
+    vi = glXChooseVisual(dpy, 0, att);
+    if (!vi) {
+        printf("No appropriate visual found\n");
+        exit(EXIT_FAILURE);
+    }
+    cmap = XCreateColormap(dpy, root, vi->visual, AllocNone);
+    swa.colormap = cmap;
+    swa.event_mask = ExposureMask | KeyPressMask;
+    win = XCreateWindow(dpy, root, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 0,
+        vi->depth, InputOutput, vi->visual, CWColormap | CWEventMask, &swa);
+
+    XMapWindow(dpy, win);
+    XStoreName(dpy, win, "Atari 2600 Emulator");
+    glc = glXCreateContext(dpy, vi, NULL, GL_TRUE);
+    glXMakeCurrent(dpy, win, glc);
 
     cpu_init(&cpu);
     tia_init(&tia);
+
     load_source(&cpu, argv[1]);
-    //load_source(&cpu, "missiles.rom");
     run(&cpu, &tia);
     return EXIT_SUCCESS;
 }

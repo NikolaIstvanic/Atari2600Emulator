@@ -276,7 +276,7 @@ void ADC(CPU* cpu)
     uint8_t operand = cpu->opcode == 0x69 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
     uint16_t sum = cpu->A + (cpu->P & CARRY) + operand;
-    sum & CARRY ? SET(CARRY) : CLEAR(CARRY);
+    sum > 255 ? SET(CARRY) : CLEAR(CARRY);
     set_flags(cpu, sum);
     !((cpu->A ^ operand) & SIGN) && ((cpu->A ^ sum) & SIGN)
         ? SET(OVERFLOW) : CLEAR(OVERFLOW);
