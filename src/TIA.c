@@ -89,17 +89,16 @@ void tia_init(TIA* tia)
  */
 static inline uint8_t reverse(uint8_t bits)
 {
-    uint8_t count = sizeof(bits) * 8 - 1;
-    uint8_t reverse = bits;
+    int i;
+    uint8_t count = sizeof(bits) * 8;
+    uint8_t reverse = 0;
 
-    bits >>= 1;
-    while (bits) {
-        reverse <<= 1;
-        reverse |= bits & 1;
-       bits >>= 1;
-       count--;
+    for (i = 0; i < count; i++) {
+        if ((bits & (1 << i))) {
+           reverse |= 1 << ((count - 1) - i);
+       }
     }
-    return reverse << count;
+    return reverse;
 }
 
 /*
@@ -181,10 +180,10 @@ static void draw_player0(CPU* cpu, TIA* tia)
     uint32_t sprite_color = color_lookup((colup0 & 0xF) >> 1, colup0 >> 4);
     uint16_t y = tia->beam_y - VBLANK_MAX;
 
-    for (i = 0; i < 16; i++) {
-        uint32_t color = (sprite >> i / 2) & 0x1 ? sprite_color
-            : tia->pixels[y * WIDTH + p0x + i];
-        tia->pixels[y * WIDTH + p0x + i] = color;
+    for (i = 0; i < 8; i++) {
+        uint32_t clr = (sprite >> i) & 0x1 ? sprite_color
+            : tia->pixels[y * WIDTH + (p0x + i) % WIDTH];
+        tia->pixels[y * WIDTH + (p0x + i) % WIDTH] = clr;
     }
 }
 
@@ -205,14 +204,14 @@ static void draw_player1(CPU* cpu, TIA* tia)
     uint32_t sprite_color = color_lookup((colup1 & 0xF) >> 1, colup1 >> 4);
     uint16_t y = tia->beam_y - VBLANK_MAX;
 
-    for (i = 0; i < 16; i++) {
-        uint32_t color = (sprite >> (i / 2)) & 0x1 ? sprite_color
-            : tia->pixels[y * WIDTH + p1x + i];
-        tia->pixels[y * WIDTH + p1x + i] = color;
+    for (i = 0; i < 8; i++) {
+        uint32_t clr = (sprite >> i) & 0x1 ? sprite_color
+            : tia->pixels[y * WIDTH + (p1x + i) % WIDTH];
+        tia->pixels[y * WIDTH + (p1x + i) % WIDTH] = clr;
     }
 }
 
-static inline void draw_missile0(CPU* cpu, TIA* tia)
+static void draw_missile0(CPU* cpu, TIA* tia)
 {
     if (!(read8(cpu, ENAM0) & 0x2)) {
         return;
@@ -222,14 +221,14 @@ static inline void draw_missile0(CPU* cpu, TIA* tia)
     uint16_t y = tia->beam_y - VBLANK_MAX;
     uint8_t colup0 = read8(cpu, COLUP0);
     uint32_t clr = color_lookup((colup0 & 0xF) >> 1, colup0 >> 4);
-    uint8_t size = read8(cpu, NUSIZ0);
+    uint8_t size = 1 << ((read8(cpu, NUSIZ0) >> 4) & 0x03);
 
     for (i = 0; i < size; i++) {
-        tia->pixels[y * WIDTH + m0x + i] = clr;
+        tia->pixels[y * WIDTH + (m0x + i) % WIDTH] = clr;
     }
 }
 
-static inline void draw_missile1(CPU* cpu, TIA* tia)
+static void draw_missile1(CPU* cpu, TIA* tia)
 {
     if (!(read8(cpu, ENAM1) & 0x2)) {
         return;
@@ -239,14 +238,14 @@ static inline void draw_missile1(CPU* cpu, TIA* tia)
     uint16_t y = tia->beam_y - VBLANK_MAX;
     uint8_t colup1 = read8(cpu, COLUP1);
     uint32_t clr = color_lookup((colup1 & 0xF) >> 1, colup1 >> 4);
-    uint8_t size = read8(cpu, NUSIZ1);
+    uint8_t size = 1 << ((read8(cpu, NUSIZ1) >> 4) & 0x03);
 
     for (i = 0; i < size; i++) {
-        tia->pixels[y * WIDTH + m1x + i] = clr;
+        tia->pixels[y * WIDTH + (m1x + i) % WIDTH] = clr;
     }
 }
 
-static inline void draw_ball(CPU* cpu, TIA* tia)
+static void draw_ball(CPU* cpu, TIA* tia)
 {
     if (!(read8(cpu, ENABL) & 0x2)) {
         return;
@@ -256,11 +255,10 @@ static inline void draw_ball(CPU* cpu, TIA* tia)
     uint16_t y = tia->beam_y - VBLANK_MAX;
     uint8_t colupf = read8(cpu, COLUPF);
     uint32_t clr = color_lookup((colupf & 0xF) >> 1, colupf >> 4);
-    uint8_t ctrlpf = read8(cpu, CTRLPF);
-    uint8_t size = 1 << ((ctrlpf >> 4) & 0x3);
+    uint8_t size = 1 << ((read8(cpu, CTRLPF) >> 4) & 0x03);
 
     for (i = 0; i < size; i++) {
-        tia->pixels[y * WIDTH + blx + i] = clr;
+        tia->pixels[y * WIDTH + (blx + i) % WIDTH] = clr;
     }
 }
 
@@ -354,11 +352,11 @@ void tia_step(CPU* cpu, TIA* tia)
         }
     } else if (hmove) {
         hmove = 0;
-        p0x = (p0x + to_signed(read8(cpu, HMP0))) % WIDTH;
-        p1x = (p1x + to_signed(read8(cpu, HMP1))) % WIDTH;
-        m0x = (m0x + to_signed(read8(cpu, HMM0))) % WIDTH;
-        m1x = (m1x + to_signed(read8(cpu, HMM1))) % WIDTH;
-        blx = (blx + to_signed(read8(cpu, HMBL))) % WIDTH;
+        p0x = (((int16_t) p0x - to_signed(read8(cpu, HMP0))) + WIDTH) % WIDTH;
+        p1x = (((int16_t) p1x - to_signed(read8(cpu, HMP1))) + WIDTH) % WIDTH;
+        m0x = (((int16_t) m0x - to_signed(read8(cpu, HMM0))) + WIDTH) % WIDTH;
+        m1x = (((int16_t) m1x - to_signed(read8(cpu, HMM1))) + WIDTH) % WIDTH;
+        blx = (((int16_t) blx - to_signed(read8(cpu, HMBL))) + WIDTH) % WIDTH;
     } else if (hmclr) {
         hmclr = 0;
         write8(cpu, HMP0, 0x00);
@@ -431,5 +429,7 @@ void tia_step(CPU* cpu, TIA* tia)
             }
             break;
     }
+    //printf("X: %d, Y: %d, State: %d\n", tia->beam_x, tia->beam_y, tia->tia_state);
+    //printf("p0: %d, p1: %d, m0: %d, m1: %d, b: %d\n", p0x, p1x, m0x, m1x, blx);
 }
 

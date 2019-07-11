@@ -77,7 +77,7 @@
 #include "MMU.h"
 #include "TIA.h"
 
-#define WINDOW_WIDTH (WIDTH * 2)
+#define WINDOW_WIDTH (WIDTH * 4)
 #define WINDOW_HEIGHT (HEIGHT * 2)
 
 Display* dpy;
