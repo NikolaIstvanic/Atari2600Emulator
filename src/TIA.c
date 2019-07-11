@@ -289,6 +289,7 @@ void tia_step(CPU* cpu, TIA* tia)
             draw_player1(cpu, tia);
             draw_missile0(cpu, tia);
             draw_missile1(cpu, tia);
+            draw_ball(cpu, tia);
         }
         tia->beam_y++;
         tia->beam_x = 0;
@@ -415,6 +416,7 @@ void tia_step(CPU* cpu, TIA* tia)
             draw_player1(cpu, tia);
             draw_missile0(cpu, tia);
             draw_missile1(cpu, tia);
+            draw_ball(cpu, tia);
             break;
 
         case TIA_OVERSCAN:
