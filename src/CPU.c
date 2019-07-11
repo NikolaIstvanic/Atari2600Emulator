@@ -287,7 +287,7 @@ void AND(CPU* cpu)
 {
     print("AND");
     /* IMM addressing mode has next byte as immediate value, not address */
-    cpu->A &= cpu->opcode == 0x39 ? addressing_rom[cpu->opcode](cpu)
+    cpu->A &= cpu->opcode == 0x29 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
     set_flags(cpu, cpu->A);
 }
@@ -737,13 +737,14 @@ void SBC(CPU* cpu)
     /* IMM addressing mode means next byte is value, not address */
     uint8_t operand = cpu->opcode == 0xE9 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
-    uint16_t difference = cpu->A - (1 - (cpu->P & CARRY)) - operand;
-    set_flags(cpu, difference);
-    ((cpu->A ^ difference) & SIGN) && ((cpu->A ^ operand) & SIGN)
+    operand ^= 0xFF;
+    uint16_t sum = cpu->A + (ISSET(CARRY) ? 1 : 0) + operand;
+    sum > 255 ? SET(CARRY) : CLEAR(CARRY);
+    set_flags(cpu, sum);
+    ((sum ^ (uint16_t) cpu->A) & (sum ^ operand) & 0x80)
         ? SET(OVERFLOW) : CLEAR(OVERFLOW);
-    (int16_t) cpu->A - (int16_t) operand - (1 - (cpu->P & CARRY)) < 0x0
-        ? SET(CARRY) : CLEAR(CARRY); 
-    cpu->A = difference;
+    cpu->A = sum;
+    cpu->A & SIGN ? SET(SIGN) : CLEAR(SIGN);
 }
 
 /*

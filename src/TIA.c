@@ -43,7 +43,7 @@
 #include "TIA.h"
 
 // TODO: remove magic numbers
-static uint8_t p0x = 120;
+static uint8_t p0x = 40;
 static uint8_t p1x = 200;
 static uint8_t m0x = 220;
 static uint8_t m1x = 10;
@@ -304,51 +304,40 @@ void tia_step(CPU* cpu, TIA* tia)
         } else {
             tia->tia_state = TIA_VSYNC;
         }
-        //return; // TODO: determine if this return is needed
     } else if (resp0) {
         resp0 = 0;
-        if (tia->tia_state == TIA_DRAW) {
-            p0x = tia->beam_x;
-            draw_player0(cpu, tia);
-        } else if (tia->tia_state == TIA_HBLANK) {
-            p0x = HBLANK_MAX + 3;
-            draw_player0(cpu, tia);
+        if (tia->tia_state == TIA_HBLANK) {
+            p0x = 3;
+        } else {
+            p0x = tia->beam_x - HBLANK_MAX;
         }
     } else if (resp1) {
         resp1 = 0;
-        if (tia->tia_state == TIA_DRAW) {
-            p1x = tia->beam_x;
-            draw_player1(cpu, tia);
-        } else if (tia->tia_state == TIA_HBLANK) {
-            p1x = HBLANK_MAX + 3;
-            draw_player1(cpu, tia);
+        if (tia->tia_state == TIA_HBLANK) {
+            p1x = 3;
+        } else {
+            p1x = tia->beam_x - HBLANK_MAX;
         }
     } else if (resm0) {
         resm0 = 0;
         if (tia->tia_state == TIA_DRAW) {
-            m0x = tia->beam_x;
-            draw_missile0(cpu, tia);
-        } else if (tia->tia_state == TIA_HBLANK) {
-            m0x = HBLANK_MAX + 2;
-            draw_missile0(cpu, tia);
+            m0x = 2;
+        } else {
+            m0x = tia->beam_x - HBLANK_MAX;
         }
     } else if (resm1) {
         resm1 = 0;
-        if (tia->tia_state == TIA_DRAW) {
-            m1x = tia->beam_x;
-            draw_missile1(cpu, tia);
-        } else if (tia->tia_state == TIA_HBLANK) {
-            m1x = HBLANK_MAX + 2;
-            draw_missile1(cpu, tia);
+        if (tia->tia_state == TIA_HBLANK) {
+            m1x = 2;
+        } else {
+            m1x = tia->beam_x - HBLANK_MAX;
         }
     } else if (resbl) {
         resbl = 0;
-        if (tia->tia_state == TIA_DRAW) {
-            blx = tia->beam_x;
-            draw_ball(cpu, tia);
-        } else if (tia->tia_state == TIA_HBLANK) {
-            blx = HBLANK_MAX + 2;
-            draw_ball(cpu, tia);
+        if (tia->tia_state == TIA_HBLANK) {
+            blx = 2;
+        } else {
+            blx = tia->beam_x - HBLANK_MAX;
         }
     } else if (hmove) {
         hmove = 0;

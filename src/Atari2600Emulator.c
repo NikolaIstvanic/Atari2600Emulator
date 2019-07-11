@@ -209,7 +209,7 @@ static void run(CPU* cpu, TIA* tia)
             refresh_screen(tia);
         }
         
-        if (++x == 1180) {
+        if (++x == 1160) {
             //exit(1);
         }
     }
