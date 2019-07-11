@@ -146,6 +146,7 @@ uint8_t resm0 = 0;
 uint8_t resm1 = 0;
 uint8_t resbl = 0;
 uint8_t hmove = 0;
+uint8_t hmclr = 0;
 
 /*
  * Given a CPU pointer, initialize is memory by first zeroing it out, then
@@ -199,6 +200,8 @@ void write8(CPU* cpu, uint16_t address, uint8_t data)
         resbl = 1;
     } else if (address == HMOVE) {
         hmove = 1;
+    } else if (address == HMCLR) {
+        hmclr = 1;
     }
 }
 

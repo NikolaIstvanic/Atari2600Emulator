@@ -29,7 +29,14 @@
 #define GRP1   0x1C
 #define ENAM0  0x1D
 #define ENAM1  0x1E
+#define ENABL  0x1F
+#define HMP0   0x20
+#define HMP1   0x21
+#define HMM0   0x22
+#define HMM1   0x23
+#define HMBL   0x24
 #define HMOVE  0x2A
+#define HMCLR  0x2B
 
 /* STROBE BOOLEANS */
 extern uint8_t wsync;
@@ -39,6 +46,7 @@ extern uint8_t resm0;
 extern uint8_t resm1;
 extern uint8_t resbl;
 extern uint8_t hmove;
+extern uint8_t hmclr;
 
 /* INTERRUPT VECTORS */
 extern const uint16_t NMI_VECTOR;
