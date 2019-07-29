@@ -42,12 +42,14 @@
 #include "MMU.h"
 #include "TIA.h"
 
-// TODO: remove magic numbers
-static uint8_t p0x = 40;
-static uint8_t p1x = 200;
-static uint8_t m0x = 220;
-static uint8_t m1x = 10;
-static uint8_t blx = 50;
+// TODO: figure out why in complexscene.rom the sprite moves slowly and wraps incorrectly
+// TODO: fix complexscene sprite movement
+
+static uint8_t p0x = 0;
+static uint8_t p1x = 0;
+static uint8_t m0x = 0;
+static uint8_t m1x = 0;
+static uint8_t blx = 0;
 
 uint32_t color_rom[8][16] = {
     { 0x000000, 0x004444, 0x002870, 0x001884, 0x000088, 0x5C0078, 0x780048, 0x840014,
@@ -306,35 +308,35 @@ void tia_step(CPU* cpu, TIA* tia)
         }
     } else if (resp0) {
         resp0 = 0;
-        if (tia->tia_state == TIA_HBLANK) {
+        if (tia->beam_x <= HBLANK_MAX) {
             p0x = 3;
         } else {
             p0x = tia->beam_x - HBLANK_MAX;
         }
     } else if (resp1) {
         resp1 = 0;
-        if (tia->tia_state == TIA_HBLANK) {
+        if (tia->beam_x <= HBLANK_MAX) {
             p1x = 3;
         } else {
             p1x = tia->beam_x - HBLANK_MAX;
         }
     } else if (resm0) {
         resm0 = 0;
-        if (tia->tia_state == TIA_DRAW) {
+        if (tia->beam_x <= HBLANK_MAX) {
             m0x = 2;
         } else {
             m0x = tia->beam_x - HBLANK_MAX;
         }
     } else if (resm1) {
         resm1 = 0;
-        if (tia->tia_state == TIA_HBLANK) {
+        if (tia->beam_x <= HBLANK_MAX) {
             m1x = 2;
         } else {
             m1x = tia->beam_x - HBLANK_MAX;
         }
     } else if (resbl) {
         resbl = 0;
-        if (tia->tia_state == TIA_HBLANK) {
+        if (tia->beam_x <= HBLANK_MAX) {
             blx = 2;
         } else {
             blx = tia->beam_x - HBLANK_MAX;
@@ -418,7 +420,7 @@ void tia_step(CPU* cpu, TIA* tia)
             }
             break;
     }
-    //printf("X: %d, Y: %d, State: %d\n", tia->beam_x, tia->beam_y, tia->tia_state);
-    //printf("p0: %d, p1: %d, m0: %d, m1: %d, b: %d\n", p0x, p1x, m0x, m1x, blx);
+    //printf("X: %3d, Y: %3d, State: %d\n", tia->beam_x, tia->beam_y, tia->tia_state);
+    //printf("p0: %3d, p1: %3d, m0: %3d, m1: %3d, b: %3d\n", p0x, p1x, m0x, m1x, blx);
 }
 

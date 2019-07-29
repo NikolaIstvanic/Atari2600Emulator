@@ -130,6 +130,7 @@
  * 0296    TIM64T  11111111  set 64 clock interval (53.6 usec/interval)
  * 0297    T1024T  11111111  set 1024 clock interval (858.2 usec/interval)
  */
+#include <stdlib.h>
 #include <string.h>
 
 #include "MMU.h"
@@ -148,6 +149,11 @@ uint8_t resbl = 0;
 uint8_t hmove = 0;
 uint8_t hmclr = 0;
 
+uint8_t tim1t = 0;
+uint8_t tim8t = 0;
+uint8_t tim64t = 0;
+uint8_t t1024t = 0;
+
 /*
  * Given a CPU pointer, initialize is memory by first zeroing it out, then
  * setting up the interrupt vectors, and setting up the interrupt handlers.
@@ -158,6 +164,7 @@ void mem_init(CPU* cpu)
      memset(cpu->RAM, 0, SIZE_MEM);
 
      write16(cpu, RESET_VECTOR, RESET_ISR); // point to the start of code
+     write16(cpu, INTIM, rand() & 0xFF);
 }
 
 /*******************************************************************************
@@ -202,6 +209,14 @@ void write8(CPU* cpu, uint16_t address, uint8_t data)
         hmove = 1;
     } else if (address == HMCLR) {
         hmclr = 1;
+    } else if (address == TIM1T) {
+        tim1t = 1;
+    } else if (address == TIM8T) {
+        tim8t = 1;
+    } else if (address == TIM64T) {
+        tim64t = 1;
+    } else if (address == T1024T) {
+        t1024t = 1;
     }
 }
 

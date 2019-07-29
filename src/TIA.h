@@ -12,6 +12,8 @@
 #define HBLANK_MAX 68
 #define DRAW_MAX 232
 
+// TODO: refactor
+
 /* ENUM */
 enum { TIA_VSYNC, TIA_VBLANK, TIA_HBLANK, TIA_DRAW, TIA_OVERSCAN };
 

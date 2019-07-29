@@ -22,6 +22,9 @@
 
 #include "CPU.h"
 #include "MMU.h"
+#include "Timer.h"
+
+// TODO: implement all illegal opcodes
 
 //#define DEBUG
 
@@ -78,12 +81,19 @@ uint8_t fetch(CPU* cpu)
  */
 void cpu_step(CPU* cpu)
 {
+    int i;
+
     print("PC = 0x%04X: ", cpu->PC);
     /* Fetch next instruction opcode */
     cpu->opcode = fetch(cpu);
     cpu->cycles = cycle_rom[cpu->opcode];
     /* Decode and execute */
     instruction_rom[cpu->opcode](cpu);
+
+    for (i = 0; i < cpu->cycles; i++) {
+        timer_step(cpu);
+    }
+
     print(" (0x%02X), S = 0x%02X, A = 0x%02X, X = 0x%02X, Y = 0x%02X, "
         "P = 0x%02X, Cycles = %d\n", cpu->opcode, cpu->S, cpu->A, cpu->X,
         cpu->Y, cpu->P, cpu->cycles);
@@ -102,7 +112,7 @@ static inline uint16_t relative_offset(uint8_t offset)
 }
 
 /*
- * Set the ZERO and NEGATIVE flags of the status register, P, for the
+ * Set the ZERO and SIGN flags of the status register, P, for the
  * given parameter. Other flags will be set on a case-by-case basis.
  */
 static void set_flags(CPU* cpu, uint8_t value)
@@ -276,11 +286,20 @@ void ADC(CPU* cpu)
     uint8_t operand = cpu->opcode == 0x69 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
     uint16_t sum = cpu->A + (cpu->P & CARRY) + operand;
-    sum > 255 ? SET(CARRY) : CLEAR(CARRY);
+    sum > 0xFF ? SET(CARRY) : CLEAR(CARRY);
     set_flags(cpu, sum);
     !((cpu->A ^ operand) & SIGN) && ((cpu->A ^ sum) & SIGN)
         ? SET(OVERFLOW) : CLEAR(OVERFLOW);
     cpu->A = sum;
+}
+
+void ANC(CPU* cpu)
+{
+    print("ANC");
+    uint8_t operand = addressing_rom[cpu->opcode](cpu);
+    cpu->A &= operand;
+    set_flags(cpu, cpu->A);
+    cpu->A & SIGN ? SET(CARRY) : CLEAR(CARRY);
 }
 
 void AND(CPU* cpu)
@@ -290,6 +309,29 @@ void AND(CPU* cpu)
     cpu->A &= cpu->opcode == 0x29 ? addressing_rom[cpu->opcode](cpu)
         : read8(cpu, addressing_rom[cpu->opcode](cpu));
     set_flags(cpu, cpu->A);
+}
+
+void ARR(CPU* cpu)
+{
+    print("ARR");
+    uint8_t operand = addressing_rom[cpu->opcode](cpu) & cpu->A;
+    cpu->A = (operand >> 1) | (ISSET(CARRY) ? 0x80 : 0x00);
+    set_flags(cpu, cpu->A);
+    uint8_t flags = cpu->A & 0x60;
+
+    if (flags == 0x60) {
+        SET(CARRY);
+        CLEAR(OVERFLOW);
+    } else if (flags == 0x00) {
+        CLEAR(CARRY);
+        CLEAR(OVERFLOW);
+    } else if (flags == 0x20) {
+        CLEAR(CARRY);
+        SET(OVERFLOW);
+    } else if (flags == 0x40) {
+        SET(CARRY);
+        SET(OVERFLOW);
+    }
 }
 
 void ASL(CPU* cpu)
@@ -308,6 +350,17 @@ void ASL(CPU* cpu)
         set_flags(cpu, operand);
         write8(cpu, address, operand);
     }
+}
+
+void ASR(CPU* cpu)
+{
+    print("ASR");
+    printf("illegal\n");
+    uint8_t operand = addressing_rom[cpu->opcode](cpu) & cpu->A;
+    operand & 0x01 ? SET(CARRY) : CLEAR(CARRY);
+    cpu->A = operand >> 1;
+    cpu->A ? CLEAR(ZERO) : CLEAR(ZERO);
+    CLEAR(SIGN);
 }
 
 /*
@@ -510,6 +563,11 @@ void DEY(CPU* cpu)
     set_flags(cpu, --cpu->Y);
 }
 
+void DCP(CPU* cpu)
+{
+    print("DCP");
+}
+
 void EOR(CPU* cpu)
 {
     print("EOR");
@@ -544,6 +602,39 @@ void INY(CPU* cpu)
 {
     print("INY");
     set_flags(cpu, ++cpu->Y);
+}
+
+/*
+ * Increase memory by one, then subtract memory from A register (with borrow).
+ */
+void ISB(CPU* cpu)
+{
+    print("ISB");
+    uint8_t addr = addressing_rom[cpu->opcode](cpu);
+    uint8_t operand = read8(cpu, addr) + 1;
+    write8(cpu, addr, operand);
+    if (ISSET(DECIMAL)) {
+        uint8_t a = (cpu->A & 0xF) - (1 - (ISSET(CARRY) ? 1 : 0));
+        uint8_t h = (cpu->A >> 4) - (operand >> 4) - (a < 0);
+        if (a < 0) {
+            a -= 6;
+        }
+        if (h < 0) {
+            h -= 6;
+        }
+        uint16_t difference = cpu->A - operand - (1 - (ISSET(CARRY) ? 1 : 0));
+        -difference & 0x100 ? SET(CARRY) : CLEAR(CARRY);
+        (((cpu->A ^ operand) & (cpu->A ^ difference)) & 128) ? SET(OVERFLOW) : CLEAR(OVERFLOW);
+        set_flags(cpu, difference);
+        cpu->A = ((h << 4) | (a & 0xF)) & 0xFF;
+    } else {
+        operand = ~operand;
+        uint16_t difference = cpu->A + operand + (ISSET(CARRY) ? 1 : 0);
+        difference > 0xFF ? SET(CARRY) : CLEAR(CARRY);
+        ((cpu->A ^ difference) & (operand ^ difference) & 0x80) ? SET(OVERFLOW) : CLEAR(OVERFLOW);
+        cpu->A = difference;
+        set_flags(cpu, cpu->A);
+    }
 }
 
 /*
@@ -615,6 +706,15 @@ void LSR(CPU* cpu)
         set_flags(cpu, operand);
         write8(cpu, address, operand);
     }
+}
+
+void LXA(CPU* cpu)
+{
+    print("LXA");
+    cpu->A &= addressing_rom[cpu->opcode](cpu);
+    cpu->X = cpu->A;
+    set_flags(cpu, cpu->A);
+    printf("illegal\n");
 }
 
 void NOP(CPU* cpu)
@@ -731,6 +831,13 @@ void RTS(CPU* cpu)
     cpu->PC = pop16(cpu) + 1;
 }
 
+void SAX(CPU* cpu)
+{
+    print("SAX");
+    uint8_t operand = read8(cpu, addressing_rom[cpu->opcode](cpu));
+    write8(cpu, operand, cpu->X & cpu->A);
+}
+
 void SBC(CPU* cpu)
 {
     print("SBC");
@@ -745,6 +852,17 @@ void SBC(CPU* cpu)
         ? SET(OVERFLOW) : CLEAR(OVERFLOW);
     cpu->A = sum;
     cpu->A & SIGN ? SET(SIGN) : CLEAR(SIGN);
+}
+
+void SBX(CPU* cpu)
+{
+    print("SBX");
+    return;
+    uint8_t operand = addressing_rom[cpu->opcode](cpu);
+    printf("0x%02X\n", operand);
+    (cpu->A & cpu->X) >= operand ? SET(CARRY) : CLEAR(CARRY);
+    cpu->X = ((cpu->A & cpu->X) - operand) & 0xFF;
+    set_flags(cpu, cpu->X);
 }
 
 /*
@@ -766,6 +884,12 @@ void SEI(CPU* cpu)
 {
     print("SEI");
     SET(INTERRUPT);
+}
+
+void SHA(CPU* cpu)
+{
+    print("SHA");
+    // TODO: implement
 }
 
 void STA(CPU* cpu)
@@ -878,22 +1002,22 @@ uint8_t cycle_rom[0x100] = {
  */
 void (*instruction_rom[0x100])(CPU* cpu) = {
     /*0x   0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F*/
-    /*0*/ BRK, ORA, NOP, NOP, NOP, ORA, ASL, NOP, PHP, ORA, ASL, NOP, NOP, ORA, ASL, NOP,
+    /*0*/ BRK, ORA, NOP, NOP, NOP, ORA, ASL, NOP, PHP, ORA, ASL, ANC, NOP, ORA, ASL, NOP,
     /*1*/ BPL, ORA, NOP, NOP, NOP, ORA, ASL, NOP, CLC, ORA, NOP, NOP, NOP, ORA, ASL, NOP,
-    /*2*/ JSR, AND, NOP, NOP, BIT, AND, ROL, NOP, PLP, AND, ROL, NOP, BIT, AND, ROL, NOP,
+    /*2*/ JSR, AND, NOP, NOP, BIT, AND, ROL, NOP, PLP, AND, ROL, ANC, BIT, AND, ROL, NOP,
     /*3*/ BMI, AND, NOP, NOP, NOP, AND, ROL, NOP, SEC, AND, NOP, NOP, NOP, AND, ROL, NOP,
-    /*4*/ RTI, EOR, NOP, NOP, NOP, EOR, LSR, NOP, PHA, EOR, LSR, NOP, JMP, EOR, LSR, NOP,
+    /*4*/ RTI, EOR, NOP, NOP, NOP, EOR, LSR, NOP, PHA, EOR, LSR, ASR, JMP, EOR, LSR, NOP,
     /*5*/ BVC, EOR, NOP, NOP, NOP, EOR, LSR, NOP, CLI, EOR, NOP, NOP, NOP, EOR, LSR, NOP,
-    /*6*/ RTS, ADC, NOP, NOP, NOP, ADC, ROR, NOP, PLA, ADC, ROR, NOP, JMP, ADC, ROR, NOP,
+    /*6*/ RTS, ADC, NOP, NOP, NOP, ADC, ROR, NOP, PLA, ADC, ROR, ARR, JMP, ADC, ROR, NOP,
     /*7*/ BVS, ADC, NOP, NOP, NOP, ADC, ROR, NOP, SEI, ADC, NOP, NOP, NOP, ADC, ROR, NOP,
-    /*8*/ NOP, STA, NOP, NOP, STY, STA, STX, NOP, DEY, NOP, TXA, NOP, STY, STA, STX, NOP,
-    /*9*/ BCC, STA, NOP, NOP, STY, STA, STX, NOP, TYA, STA, TXS, NOP, NOP, STA, NOP, NOP,
-    /*A*/ LDY, LDA, LDX, NOP, LDY, LDA, LDX, NOP, TAY, LDA, TAX, NOP, LDY, LDA, LDX, NOP,
+    /*8*/ NOP, STA, NOP, SAX, STY, STA, STX, SAX, DEY, NOP, TXA, NOP, STY, STA, STX, SAX,
+    /*9*/ BCC, STA, NOP, NOP, STY, STA, STX, SAX, TYA, STA, TXS, NOP, NOP, STA, NOP, NOP,
+    /*A*/ LDY, LDA, LDX, NOP, LDY, LDA, LDX, NOP, TAY, LDA, TAX, LXA, LDY, LDA, LDX, NOP,
     /*B*/ BCS, LDA, NOP, NOP, LDY, LDA, LDX, NOP, CLV, LDA, TSX, NOP, LDY, LDA, LDX, NOP,
     /*C*/ CPY, CMP, NOP, NOP, CPY, CMP, DEC, NOP, INY, CMP, DEX, NOP, CPY, CMP, DEC, NOP,
     /*D*/ BNE, CMP, NOP, NOP, NOP, CMP, DEC, NOP, CLD, CMP, NOP, NOP, NOP, CMP, DEC, NOP,
-    /*E*/ CPX, SBC, NOP, NOP, CPX, SBC, INC, NOP, INX, SBC, NOP, NOP, CPX, SBC, INC, NOP,
-    /*F*/ BEQ, SBC, NOP, NOP, NOP, SBC, INC, NOP, SED, SBC, NOP, NOP, NOP, SBC, INC, NOP
+    /*E*/ CPX, SBC, NOP, ISB, CPX, SBC, INC, ISB, INX, SBC, SBX, NOP, CPX, SBC, INC, ISB,
+    /*F*/ BEQ, SBC, NOP, ISB, NOP, SBC, INC, ISB, SED, SBC, NOP, ISB, ISB, SBC, INC, ISB
 };
 
 /*
@@ -902,21 +1026,21 @@ void (*instruction_rom[0x100])(CPU* cpu) = {
  */
 uint16_t (*addressing_rom[0x100])(CPU* cpu) = {
     /*0x   0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F*/
-    /*0*/ IMP, IDX, IMP, IMP, IMP, ZRP, ZRP, IMP, IMP, IMM, ACC, IMP, IMP, ABS, ABS, IMP,
+    /*0*/ IMP, IDX, IMP, IMP, IMP, ZRP, ZRP, IMP, IMP, IMM, ACC, IMM, IMP, ABS, ABS, IMP,
     /*1*/ REL, IDY, IMP, IMP, IMP, ZPX, ZPX, IMP, IMP, ABY, IMP, IMP, IMP, ABX, ABX, IMP,
-    /*2*/ ABS, IDX, IMP, IMP, ZRP, ZRP, ZRP, IMP, IMP, IMM, ACC, IMP, ABS, ABS, ABS, IMP,
+    /*2*/ ABS, IDX, IMP, IMP, ZRP, ZRP, ZRP, IMP, IMP, IMM, ACC, IMM, ABS, ABS, ABS, IMP,
     /*3*/ REL, IDY, IMP, IMP, IMP, ZPX, ZPX, IMP, IMP, ABY, IMP, IMP, IMP, ABX, ABX, IMP,
-    /*4*/ IMP, IDX, IMP, IMP, IMP, ZRP, ZRP, IMP, IMP, IMM, ACC, IMP, ABS, ABS, ABS, IMP,
+    /*4*/ IMP, IDX, IMP, IMP, IMP, ZRP, ZRP, IMP, IMP, IMM, ACC, IMM, ABS, ABS, ABS, IMP,
     /*5*/ REL, IDY, IMP, IMP, IMP, ZPX, ZPX, IMP, IMP, ABY, IMP, IMP, IMP, ABX, ABX, IMP,
-    /*6*/ IMP, IDX, IMP, IMP, IMP, ZRP, ZRP, IMP, IMP, IMM, ACC, IMP, IND, ABS, ABS, IMP,
+    /*6*/ IMP, IDX, IMP, IMP, IMP, ZRP, ZRP, IMP, IMP, IMM, ACC, IMM, IND, ABS, ABS, IMP,
     /*7*/ REL, IDY, IMP, IMP, IMP, ZPX, ZPX, IMP, IMP, ABY, IMP, IMP, IMP, ABX, ABX, IMP,
-    /*8*/ IMP, IDX, IMP, IMP, ZRP, ZRP, ZRP, IMP, IMP, IMP, IMP, IMP, ABS, ABS, ABS, IMP,
-    /*9*/ REL, IDY, IMP, IMP, ZPX, ZPX, ZPY, IMP, IMP, ABY, IMP, IMP, IMP, ABX, IMP, IMP,
-    /*A*/ IMM, IDX, IMM, IMP, ZRP, ZRP, ZRP, IMP, IMP, IMM, IMP, IMP, ABS, ABS, ABS, IMP,
+    /*8*/ IMP, IDX, IMP, IDX, ZRP, ZRP, ZRP, ZRP, IMP, IMP, IMP, IMP, ABS, ABS, ABS, ABS,
+    /*9*/ REL, IDY, IMP, IMP, ZPX, ZPX, ZPY, ZPY, IMP, ABY, IMP, IMP, IMP, ABX, IMP, IMP,
+    /*A*/ IMM, IDX, IMM, IMP, ZRP, ZRP, ZRP, IMP, IMP, IMM, IMP, IMM, ABS, ABS, ABS, IMP,
     /*B*/ REL, IDY, IMP, IMP, ZPX, ZPX, ZPY, IMP, IMP, ABY, IMP, IMP, ABX, ABX, ABY, IMP,
     /*C*/ IMM, IDX, IMP, IMP, ZRP, ZRP, ZRP, IMP, IMP, IMM, IMP, IMP, ABS, ABS, ABS, IMP,
     /*D*/ REL, IDY, IMP, IMP, IMP, ZPX, ZPX, IMP, IMP, ABY, IMP, IMP, IMP, ABX, ABX, IMP,
-    /*E*/ IMM, IDX, IMP, IMP, ZRP, ZRP, ZRP, IMP, IMP, IMM, IMP, IMP, ABS, ABS, ABS, IMP,
-    /*F*/ REL, IDY, IMP, IMP, IMP, ZPX, ZPX, IMP, IMP, ABY, IMP, IMP, IMP, ABX, ABX, IMP
+    /*E*/ IMM, IDX, IMP, IDX, ZRP, ZRP, ZRP, ZRP, IMP, IMM, IMM, IMP, ABS, ABS, ABS, ABS,
+    /*F*/ REL, IDY, IMP, IDY, IMP, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, IMP, ABX, ABX, ABX 
 };
 

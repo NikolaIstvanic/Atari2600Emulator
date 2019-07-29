@@ -28,9 +28,10 @@ extern uint16_t (*addressing_rom[0x100])(CPU* cpu);
 /* METHOD PROTOTYPES */
 void cpu_init(CPU* cpu);
 void cpu_step(CPU* cpu);
-uint8_t fetch(CPU* cpu);
+//uint8_t fetch(CPU* cpu);
 
 /* INSTRUCTION SET PROTOTYPES */
+/*
 void ADC(CPU* cpu);
 void AND(CPU* cpu);
 void ASL(CPU* cpu);
@@ -58,6 +59,7 @@ void EOR(CPU* cpu);
 void INC(CPU* cpu);
 void INX(CPU* cpu);
 void INY(CPU* cpu);
+void ISB(CPU* cpu);
 void JMP(CPU* cpu);
 void JSR(CPU* cpu);
 void LDA(CPU* cpu);
@@ -87,6 +89,7 @@ void TSX(CPU* cpu);
 void TXA(CPU* cpu);
 void TYA(CPU* cpu);
 void TXS(CPU* cpu);
+*/
 
 #endif
 

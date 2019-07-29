@@ -47,5 +47,16 @@ typedef struct tia {
     unsigned tia_state;              // current state of the TIA
 } TIA;
 
+/*
+ * Struct which is passed to the thread on which the graphics are rendered.
+ * This struct is used so that the void pointer given to the pthread_create
+ * method can pass pointers to the CPU and TIA.
+ */
+struct EMU {
+    CPU* cpu;
+    TIA* tia;
+};
+
+
 #endif
 

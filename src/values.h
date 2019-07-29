@@ -9,5 +9,11 @@
 #define WIDTH 160 // width of TIA image
 #define HEIGHT 192 // height of TIA image
 
+#define CPU_SPEED 1193182 // CPU speed (1.19 MHz)
+
+#define MICRO_IN_SEC 1000
+
+#define CLEARBIT(_val, _bit) ((_val) & ~(1 << (_bit))) // Clear _bit-th bit in _val
+
 #endif
 

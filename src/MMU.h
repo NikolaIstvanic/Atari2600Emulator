@@ -37,6 +37,17 @@
 #define HMBL   0x24
 #define HMOVE  0x2A
 #define HMCLR  0x2B
+#define INPT4  0x3C
+#define INPT5  0x3D
+#define SWCHA  0x280
+#define SWCHB  0x282
+#define SWBCNT 0x283
+#define INTIM  0x284
+#define INSTAT 0x285
+#define TIM1T  0x294
+#define TIM8T  0x295
+#define TIM64T 0x296
+#define T1024T 0x297
 
 /* STROBE BOOLEANS */
 extern uint8_t wsync;
@@ -47,6 +58,12 @@ extern uint8_t resm1;
 extern uint8_t resbl;
 extern uint8_t hmove;
 extern uint8_t hmclr;
+
+/* TIMER VARIABLES */
+extern uint8_t tim1t;
+extern uint8_t tim8t;
+extern uint8_t tim64t;
+extern uint8_t t1024t;
 
 /* INTERRUPT VECTORS */
 extern const uint16_t NMI_VECTOR;
