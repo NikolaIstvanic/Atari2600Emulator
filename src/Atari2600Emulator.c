@@ -117,7 +117,7 @@ static void load_source(CPU* cpu, const char* rom_path)
 static void update_pressed_keys(CPU* cpu)
 {
     XEvent xev;
-    uint8_t dir = 0xFF;
+    uint8_t dir = 0x7F;
     uint8_t inpt4 = 0xFF;
     uint8_t inpt5 = 0xFF;
 
@@ -202,11 +202,10 @@ static void* refresh_screen(void* emu)
     clock_gettime(CLOCK_MONOTONIC, &start);
 
     while (1) {
-        // TODO: refactor time conversions
         clock_gettime(CLOCK_MONOTONIC, &end);
         seconds = end.tv_sec - start.tv_sec;
-        useconds = (end.tv_nsec - start.tv_nsec) / 1000;
-        utime = seconds * 1000000 + useconds;
+        useconds = (end.tv_nsec - start.tv_nsec) / NANO_IN_MICRO;
+        utime = seconds * MICRO_IN_SEC + useconds;
 
         if (0 < utime && utime < 16666) {
             usleep(16666 - utime);
@@ -235,8 +234,9 @@ static void* refresh_screen(void* emu)
 static void run(CPU* cpu, TIA* tia)
 {
     pthread_t thread_id;
+    const uint32_t BATCH_SIZE = 1000;
     uint32_t instrs = 0;
-    uint32_t BATCH_SIZE = 1000;
+    double sleep_time;
     struct EMU e;
     e.cpu = cpu;
     e.tia = tia;
@@ -252,9 +252,8 @@ static void run(CPU* cpu, TIA* tia)
 
         /* Execute BATCH_SIZE instructions and sleep for the proportional amount of time */
         if (++instrs == BATCH_SIZE) {
-            // TODO: figure out why this works and/or find a different way
-            double sleep_time = 10000 - (((double) CPU_SPEED - BATCH_SIZE) / CPU_SPEED) * MICRO_IN_SEC;
             instrs = 0;
+            sleep_time = 10000 - (((double) CPU_SPEED - BATCH_SIZE) / CPU_SPEED) * 1000;
             if (0 <= sleep_time && sleep_time <= 10000) {
                 usleep(sleep_time);
             }

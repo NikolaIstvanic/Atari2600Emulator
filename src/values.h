@@ -11,7 +11,8 @@
 
 #define CPU_SPEED 1193182 // CPU speed (1.19 MHz)
 
-#define MICRO_IN_SEC 1000
+#define NANO_IN_MICRO 1000
+#define MICRO_IN_SEC 1000000
 
 #define CLEARBIT(_val, _bit) ((_val) & ~(1 << (_bit))) // Clear _bit-th bit in _val
 

@@ -271,16 +271,11 @@ static void draw_ball(CPU* cpu, TIA* tia)
  */
 void tia_step(CPU* cpu, TIA* tia)
 {
+    static int prev_pos = 0;
     if ((read8(cpu, VSYNC) & 0x02) && !(0 <= tia->beam_y && tia->beam_y <= VBLANK_MIN)) {
         tia->beam_x = 0;
         tia->beam_y = 0;
         tia->tia_state = TIA_VSYNC;
-    /*} else if ((read8(cpu, VBLANK) & 0x02) && !(VBLANK_MIN <= tia->beam_y && tia->beam_y < VBLANK_MAX)) {
-        tia->beam_x = 0;
-        tia->beam_y = VBLANK_MIN;
-        tia->tia_state = TIA_VBLANK;
-        write8(cpu, VBLANK, 0x00);
-     */
     } else if (wsync) {
         wsync = 0;
         if (VBLANK_MAX <= tia->beam_y && tia->beam_y < DRAW_MAX) {
@@ -343,7 +338,9 @@ void tia_step(CPU* cpu, TIA* tia)
         }
     } else if (hmove) {
         hmove = 0;
+        prev_pos = p0x;
         p0x = (((int16_t) p0x - to_signed(read8(cpu, HMP0))) + WIDTH) % WIDTH;
+        //printf("CHANGING FROM: %3d TO: %3d, with %d\n", prev_pos, p0x, to_signed(read8(cpu, HMP0)));
         p1x = (((int16_t) p1x - to_signed(read8(cpu, HMP1))) + WIDTH) % WIDTH;
         m0x = (((int16_t) m0x - to_signed(read8(cpu, HMM0))) + WIDTH) % WIDTH;
         m1x = (((int16_t) m1x - to_signed(read8(cpu, HMM1))) + WIDTH) % WIDTH;
