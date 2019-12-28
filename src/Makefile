@@ -1,13 +1,13 @@
-CC=gcc
-CFLAGS=-c -Wall -g
-INCLUDE=-I/usr/include/SDL
+src=$(wildcard *.cpp)
+obj=$(src:.cpp=.o)
 
-all: Atari2600Emulator.o CPU.o MMU.o TIA.o
-	$(CC) $(INCLUDE) -o Atari2600Emulator Atari2600Emulator.o CPU.o MMU.o TIA.o -lSDL
+CXX=g++
+CXXFLAGS=-Wall -std=c++17
+LDFLAGS=-lGL -lGLU -lglut -lX11 -lpthread -lpng
 
-.c.o:
-	$(CC) $(CFLAGS) $<
+Atari2600Emulator: $(obj)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
+.PHONY: clean
 clean:
-	rm -rf *.o
-
+	rm -f $(obj) Atari2600Emulator
