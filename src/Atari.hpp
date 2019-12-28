@@ -38,6 +38,7 @@
 #define HMOVE  0x2A
 
 #define SWCHA  0x280
+#define SWCHB  0x282
 #define INTIM  0x284
 #define INSTAT 0x285
 #define TIM1T  0x294

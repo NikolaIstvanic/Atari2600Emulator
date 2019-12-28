@@ -80,9 +80,14 @@ void TIA::drawPlayfield() {
         | (reverse(atari->read8(PF0, true)) << 16);
     uint8_t colupf = atari->read8(COLUPF, true);
     uint8_t colubk = atari->read8(COLUBK, true);
+    uint16_t y = beamY - 40;
+
+    if (atari->read8(CTRLPF, true) & 0x02) {
+        colupf = atari->read8(COLUP0, true);
+    }
+
     olc::Pixel pfColor = getColor((colupf & 0xF) >> 1, colupf >> 4);
     olc::Pixel bgColor = getColor((colubk & 0xF) >> 1, colubk >> 4);
-    uint16_t y = beamY - 40;
 
     // Draw the left half of the screen
     for (int i = 19; i >= 0; i--) {
@@ -97,6 +102,11 @@ void TIA::drawPlayfield() {
         line = (atari->read8(PF0, true) >> 4) | (reverse(atari->read8(PF1, true)) << 4)
             | (atari->read8(PF2, true) << 12);
     }
+    if (atari->read8(CTRLPF, true) & 0x02) {
+        colupf = atari->read8(COLUP1, true);
+        pfColor = getColor((colupf & 0xF) >> 1, colupf >> 4);
+    }
+
     // Draw other half
     for (int i = 19; i >= 0; i--) {
         olc::Pixel color = (line >> i) & 0x01 ? pfColor : bgColor;

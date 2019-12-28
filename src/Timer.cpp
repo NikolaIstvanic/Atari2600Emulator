@@ -29,7 +29,7 @@ void Timer::pulse() {
         atari->write8(INSTAT, atari->read8(INSTAT, true) | 0xC0);
         atari->write8(INTIM, 0xFF);
         currTimer = 1;
-        count = 1;
+        count = 0xFF;
     } else {
         count = currTimer;
         atari->write8(INTIM, atari->read8(INTIM, true) - 1);
