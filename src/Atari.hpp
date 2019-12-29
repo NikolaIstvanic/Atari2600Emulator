@@ -36,6 +36,10 @@
 #define HMM1   0x23
 #define HMBL   0x24
 #define HMOVE  0x2A
+#define HMCLR  0x2B
+#define CXCLR  0x2C
+#define INPT4  0x3C
+#define INPT5  0x3D
 
 #define SWCHA  0x280
 #define SWCHB  0x282
@@ -55,15 +59,16 @@ class Atari {
 
         void reset();
         void step();
+        uint8_t read8(uint16_t addr);
+        uint16_t read16(uint16_t addr);
         void write8(uint16_t addr, uint8_t data);
         void write16(uint16_t addr, uint16_t data);
-        uint8_t read8(uint16_t addr, bool bReadOnly = false);
-        uint16_t read16(uint16_t addr, bool bReadOnly = false);
 
         TIA tia;
         CPU cpu;
         std::array<uint8_t, SIZE_RAM> RAM;
 
+        // Strobe registers
         uint8_t wsync = 0;
         uint8_t resp0 = 0;
         uint8_t resp1 = 0;

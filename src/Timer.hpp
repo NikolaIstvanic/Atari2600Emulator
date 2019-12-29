@@ -4,7 +4,7 @@ class Atari;
 
 class Timer {
     public:
-        Timer();
+        Timer() = default;
         ~Timer() = default;
 
         void connectAtari(Atari* a) { atari = a; }
@@ -12,10 +12,10 @@ class Timer {
 
     private:
         void pulse();
-        void setInterval(uint8_t value, uint16_t inter);
+        void setInterval(uint8_t value, uint16_t clockInterval);
 
         Atari* atari;
         uint16_t count = 1024;
-        uint16_t currTimer = 1024;
+        uint16_t interval = 1024;
 };
 

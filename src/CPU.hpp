@@ -5,23 +5,25 @@
 
 #include "Timer.hpp"
 
-class Atari;
+#define RESET_VECTOR 0xFFFC
+#define NMI_VECTOR 0xFFFA
+#define IRQ_VECTOR 0xFFFE
 
-const uint32_t IRQ_VECTOR = 0xFFFC;
+class Atari;
 
 class CPU {
     public:
         CPU();
         ~CPU() = default;
+        void connectAtari(Atari* a) { atari = a; timer.connectAtari(a); }
         void reset();
         void step();
-        void irq();
         void nmi();
-        void connectAtari(Atari* a) { atari = a; timer.connectAtari(a); }
+        void irq();
         
         uint16_t cycles = 0;
 
-        /* STATUS REGISTER VALUES */
+        // STATUS REGISTER VALUES
         enum CPUFLAG {
             SIGN = 0x80,
             OVERFLOW = 0x40,
@@ -34,30 +36,30 @@ class CPU {
         };
 
     private:
-        void logInfo();
+        inline void logInfo();
         inline uint8_t fetch();
         inline uint16_t relativeOffset(uint8_t offset) const;
-        void setZEROSIGN(uint8_t value);
         inline void setBit(CPUFLAG f);
         inline void clrBit(CPUFLAG f);
+        inline void setZEROSIGN(uint8_t value);
 
         void write8(uint16_t addr, uint8_t data);
         void write16(uint16_t addr, uint16_t data);
         uint8_t read8(uint16_t addr);
         uint16_t read16(uint16_t addr);
-        void push8(uint8_t data);
-        void push16(uint16_t data);
         uint8_t pop8();
         uint16_t pop16();
+        void push8(uint8_t data);
+        void push16(uint16_t data);
 
-        /* MEMORY ADDRESSING MODE PROTOTYPES */
-        inline uint16_t IMP(); inline uint16_t IDX(); inline uint16_t ZRP();
-        inline uint16_t IMM(); inline uint16_t ACC(); inline uint16_t ABS();
-        inline uint16_t IND(); inline uint16_t REL(); inline uint16_t IDY();
-        inline uint16_t ZPX(); inline uint16_t ZPY(); inline uint16_t ABY();
-        inline uint16_t ABX();
+        // Memory addressing modes
+        inline uint16_t ABS(); inline uint16_t ABX(); inline uint16_t ABY();
+        inline uint16_t ACC(); inline uint16_t IDX(); inline uint16_t IDY();
+        inline uint16_t IMM(); inline uint16_t IMP(); inline uint16_t IND();
+        inline uint16_t REL(); inline uint16_t ZPX(); inline uint16_t ZPY(); 
+        inline uint16_t ZRP();
 
-        /* INSTRUCTION SET PROTOTYPES */
+        // Instruction set methods (including illegal opcodes)
         uint8_t ADC(); uint8_t ANC(); uint8_t AND(); uint8_t ANE(); uint8_t ARR(); uint8_t ASL();
         uint8_t ASR(); uint8_t BCC(); uint8_t BCS(); uint8_t BEQ(); uint8_t BIT(); uint8_t BMI();
         uint8_t BNE(); uint8_t BPL(); uint8_t BRK(); uint8_t BVC(); uint8_t BVS(); uint8_t CLC();
@@ -70,28 +72,29 @@ class CPU {
         uint8_t RTI(); uint8_t RTS(); uint8_t SAX(); uint8_t SBC(); uint8_t SBX(); uint8_t SEC();
         uint8_t SED(); uint8_t SEI(); uint8_t SHA(); uint8_t SHS(); uint8_t SHX(); uint8_t SHY();
         uint8_t SLO(); uint8_t SRE(); uint8_t STA(); uint8_t STX(); uint8_t STY(); uint8_t TAX();
-        uint8_t TAY(); uint8_t TOP(); uint8_t TSX(); uint8_t TXA(); uint8_t TYA(); uint8_t TXS();
+        uint8_t TAY(); uint8_t TOP(); uint8_t TSX(); uint8_t TXA(); uint8_t TXS(); uint8_t TYA();
 
+        Timer timer;
         Atari* atari = nullptr;
         uint8_t additional_cycle = 0;
 
-        /* Accumulator register A */
+        // Accumulator register A
         uint8_t A = 0x00;
 
-        /* 8-bit index registers X and Y */
+        // 8-bit index registers X and Y
         uint8_t X = 0x00;
         uint8_t Y = 0x00;
 
-        /* 8-bit processor status flag register */
+        // 8-bit processor status flag register
         uint8_t P = 0x00;
 
-        /* 8-bit stack pointer */
+        // 8-bit stack pointer
         uint8_t S = 0x00;
 
-        /* Program Counter address register */
+        // Program Counter address register
         uint16_t PC = 0x0000;
 
-        /* Current opcode */
+        // Current opcode
         uint8_t opcode = 0x00;
 
         struct instruction {
@@ -102,7 +105,5 @@ class CPU {
         };
 
         std::array<struct instruction, 0x100> instruction_rom;
-
-        Timer timer;
 };
 

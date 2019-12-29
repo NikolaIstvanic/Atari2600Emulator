@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cstdint>
-#include <memory>
 
 #include "olcPixelGameEngine.h"
 
@@ -16,15 +15,15 @@ class TIA {
         TIA();
         ~TIA() = default;
 
+        void connectAtari(Atari* a) { atari = a; }
         void reset();
         olc::Sprite& getScreen();
-        olc::Pixel& getColor(uint8_t luminosity, uint8_t color);
         void step();
-        void connectAtari(Atari* a) { atari = a; }
 
         bool frameDone = false;
 
     private:
+        inline olc::Pixel& getColor(uint8_t color);
         void drawPlayfield();
         void drawPlayer0();
         void drawPlayer1();
