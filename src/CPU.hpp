@@ -21,7 +21,7 @@ class CPU {
         void nmi();
         void irq();
         
-        uint16_t cycles = 0;
+        uint8_t cycles = 0;
 
         // STATUS REGISTER VALUES
         enum CPUFLAG {

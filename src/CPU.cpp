@@ -18,7 +18,6 @@
  * CPU.cpp: class which programmatically recreates the Atari 2600's MOS 6507 CPU
  */
 #include <iostream>
-#include <memory>
 
 #include "Atari.hpp"
 #include "CPU.hpp"
