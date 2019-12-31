@@ -299,16 +299,17 @@ void TIA::drawBall() {
  */
 void TIA::step() {
     frameCounter++;
-    if (frameCounter >= 208 * 262) {
+    if (frameCounter >= 208 * 262 / 2) {
         frameDone = true;
         frameCounter = 0;
     }
 
-    if ((atari->read8(VSYNC) & 0x02) && !(0 <= beamY && beamY <= 3)) {
+    if ((atari->read8(VSYNC) & 0x02) && state != TIA_VSYNC) {
         beamX = 0;
         beamY = 0;
         state = TIA_VSYNC;
-    } else if (atari->wsync) {
+    }
+    if (atari->wsync) {
         atari->wsync = 0;
         if (40 <= beamY && beamY <= 231) {
             drawPlayfield();
@@ -388,7 +389,7 @@ void TIA::step() {
     switch (state) {
         case TIA_VSYNC:
             if (beamX >= 228) {
-                beamX %= 228;
+                beamX = 0;
                 beamY++;
 
                 if (beamY >= 3) {
@@ -399,7 +400,7 @@ void TIA::step() {
 
         case TIA_VBLANK:
             if (beamX >= 228) {
-                beamX %= 228;
+                beamX = 0;
                 beamY++;
 
                 if (beamY >= 40) {
@@ -416,7 +417,7 @@ void TIA::step() {
 
         case TIA_DRAW:
             if (beamX >= 228) {
-                beamX %= 228;
+                beamX = 0;
                 beamY++;
 
                 if (beamY >= 232) {
@@ -436,7 +437,7 @@ void TIA::step() {
 
         case TIA_OVERSCAN:
             if (beamX >= 228) {
-                beamX %= 228;
+                beamX = 0;
                 beamY++;
 
                 if (beamY >= 262) {

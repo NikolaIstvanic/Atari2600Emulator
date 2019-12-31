@@ -83,6 +83,6 @@ class Atari {
         uint8_t t1024t = 0;
 
     private:
-        uint32_t clocks = 0;
+        uint16_t clocks = 0;
 };
 

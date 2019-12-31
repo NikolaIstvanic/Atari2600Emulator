@@ -66,6 +66,7 @@
  */
 #include <fstream>
 #include <iostream>
+#include <string>
 
 #include "Atari.hpp"
 
@@ -97,8 +98,6 @@ class Atari2600Emulator : public olc::PixelGameEngine {
                 atari.reset();
                 return true;
             }
-
-            ifs.close();
             std::cout << "Error reading file" << std::endl;
             return false;
         }
