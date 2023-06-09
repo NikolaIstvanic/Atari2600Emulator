@@ -11,47 +11,47 @@
 class Atari;
 
 class TIA {
-    public:
-        TIA();
-        ~TIA() = default;
+public:
+    TIA();
+    ~TIA();
 
-        void connectAtari(Atari* a) { atari = a; }
-        void reset();
-        olc::Sprite& getScreen();
-        void step();
+    void connectAtari(Atari* atari);
+    void reset();
+    olc::Sprite& getScreen();
+    void step();
 
-        bool frameDone = false;
+    bool m_frameDone = false;
 
-    private:
-        inline olc::Pixel& getColor(uint8_t color);
-        void drawPlayfield();
-        void drawPlayer0();
-        void drawPlayer1();
-        void drawMissile0();
-        void drawMissile1();
-        void drawBall();
+private:
+    inline olc::Pixel& getColor(uint8_t color);
+    void drawPlayfield();
+    void drawPlayer0();
+    void drawPlayer1();
+    void drawMissile0();
+    void drawMissile1();
+    void drawBall();
 
-        enum {
-            TIA_VSYNC,
-            TIA_VBLANK,
-            TIA_HBLANK,
-            TIA_DRAW,
-            TIA_OVERSCAN
-        } state;
+    enum {
+        TIA_VSYNC,
+        TIA_VBLANK,
+        TIA_HBLANK,
+        TIA_DRAW,
+        TIA_OVERSCAN
+    } m_state;
 
-        uint8_t beamX = 0;
-        uint16_t beamY = 0;
-        uint32_t frameCounter = 0;
+    uint8_t m_beamX = 0;
+    uint16_t m_beamY = 0;
+    uint32_t m_frameCounter = 0;
 
-        uint8_t p0x = 0;
-        uint8_t p1x = 0;
-        uint8_t m0x = 0;
-        uint8_t m1x = 0;
-        uint8_t blx = 0;
+    uint8_t m_p0x = 0;
+    uint8_t m_p1x = 0;
+    uint8_t m_m0x = 0;
+    uint8_t m_m1x = 0;
+    uint8_t m_blx = 0;
 
-        Atari* atari;
+    Atari* m_atari;
 
-        olc::Sprite sprScreen = olc::Sprite(WIDTH, HEIGHT);
-        std::array<std::array<olc::Pixel, 16>, 8> colorROM;
+    olc::Sprite m_sprScreen = olc::Sprite(WIDTH, HEIGHT);
+    std::array<std::array<olc::Pixel, 16>, 8> m_colorRom;
 };
 

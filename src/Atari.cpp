@@ -134,82 +134,87 @@
 #include "Atari.hpp"
 
 Atari::Atari() {
-    cpu.connectAtari(this);
-    tia.connectAtari(this);
+    m_cpu.connectAtari(this);
+    m_tia.connectAtari(this);
 }
 
+Atari::~Atari() = default;
+
 /**
- * @brief Reset all registers and object fields to their appropriate initial
- * values
+ * @brief Reset all registers and object fields to their appropriate initial values
  */
 void Atari::reset() {
-    cpu.reset();
-    tia.reset();
+    m_cpu.reset();
+    m_tia.reset();
 }
 
 /**
- * @brief Perform one system step. Since the TIA's clock frequency is three
- * times that of the CPU's, one CPU step is performed for every three TIA steps.
+ * @brief Perform one system step. Since the TIA's clock frequency is three times that of the
+ * CPU's, one CPU step is performed for every three TIA steps.
  */
 void Atari::step() {
-    tia.step();
+    m_tia.step();
 
-    if (clocks % 3 == 0) {
-        cpu.step();
+    if (m_clocks % 3 == 0) {
+        m_cpu.step();
     }
-    clocks++;
+
+    m_clocks++;
 }
 
 /**
  * @brief Return the byte located at the specified address.
  * @return Unsigned 8-bit value at given address
  */
-uint8_t Atari::read8(uint16_t addr) { return RAM[addr]; }
+uint8_t Atari::read8(uint16_t addr) {
+    return m_ram[addr];
+}
 
 /*
  * @brief Return the 16-bit value located at the given address.
- * Since the Atari uses little endian addressing, the least significant byte is
- * returned as the most significant byte of the return value.
+ * Since the Atari uses little endian addressing, the least significant byte is returned as the
+ * most significant byte of the return value.
  * @return Unsigned 16-bit value at given address
  */
-uint16_t Atari::read16(uint16_t addr) { return (read8(addr + 1) << 8) | read8(addr); }
+uint16_t Atari::read16(uint16_t addr) {
+    return (read8(addr + 1) << 8) | read8(addr);
+}
 
 /*
- * @brief Write the given byte at the given address. If a strobe register is
- * written to, its respective boolean will be set to true and the value will be
- * stored at the given address.
+ * @brief Write the given byte at the given address. If a strobe register is written to, its
+ * respective boolean will be set to true and the value will be stored at the given address.
  */
 void Atari::write8(uint16_t addr, uint8_t data) {
-    RAM[addr] = data;
+    m_ram[addr] = data;
 
     if (addr == WSYNC) {
-        wsync = 1;
+        m_wsync = 1;
     } else if (addr == RESP0) {
-        resp0 = 1;
+        m_resp0 = 1;
     } else if (addr == RESP1) {
-        resp1 = 1;
+        m_resp1 = 1;
     } else if (addr == RESM0) {
-        resm0 = 1;
+        m_resm0 = 1;
     } else if (addr == RESM1) {
-        resm1 = 1;
+        m_resm1 = 1;
     } else if (addr == RESBL) {
-        resbl = 1;
+        m_resbl = 1;
     } else if (addr == HMOVE) {
-        hmove = 1;
+        m_hmove = 1;
     } else if (addr == HMCLR) {
-        hmclr = 1;
+        m_hmclr = 1;
     } else if (addr == CXCLR) {
         for (int i = 0x30; i < 0x38; i++) {
             write8(i, 0x00);
         }
     } else if (addr == TIM1T) {
-        tim1t = 1;
+        m_tim1t = 1;
     } else if (addr == TIM8T) {
-        tim8t = 1;
+        m_tim8t = 1;
     } else if (addr == TIM64T) {
-        tim64t = 1;
+        m_tim64t = 1;
     } else if (addr == T1024T) {
-        t1024t = 1;
+        m_t1024t = 1;
     }
 }
 

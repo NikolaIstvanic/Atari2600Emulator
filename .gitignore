@@ -1,0 +1,4 @@
+bin/*
+src/*.o
+src/Atari2600Emulator
+

@@ -53,36 +53,36 @@
 #define SIZE_RAM 0x10000
 
 class Atari {
-    public:
-        Atari();
-        ~Atari() = default;
+public:
+    Atari();
+    ~Atari();
 
-        void reset();
-        void step();
-        uint8_t read8(uint16_t addr);
-        uint16_t read16(uint16_t addr);
-        void write8(uint16_t addr, uint8_t data);
-        void write16(uint16_t addr, uint16_t data);
+    void reset();
+    void step();
+    uint8_t read8(uint16_t addr);
+    uint16_t read16(uint16_t addr);
+    void write8(uint16_t addr, uint8_t data);
+    void write16(uint16_t addr, uint16_t data);
 
-        TIA tia;
-        CPU cpu;
-        std::array<uint8_t, SIZE_RAM> RAM;
+    TIA m_tia;
+    CPU m_cpu;
+    std::array<uint8_t, SIZE_RAM> m_ram;
 
-        // Strobe registers
-        uint8_t wsync = 0;
-        uint8_t resp0 = 0;
-        uint8_t resp1 = 0;
-        uint8_t resm0 = 0;
-        uint8_t resm1 = 0;
-        uint8_t resbl = 0;
-        uint8_t hmove = 0;
-        uint8_t hmclr = 0;
-        uint8_t tim1t = 0;
-        uint8_t tim8t = 0;
-        uint8_t tim64t = 0;
-        uint8_t t1024t = 0;
+    // Strobe registers
+    uint8_t m_wsync = 0;
+    uint8_t m_resp0 = 0;
+    uint8_t m_resp1 = 0;
+    uint8_t m_resm0 = 0;
+    uint8_t m_resm1 = 0;
+    uint8_t m_resbl = 0;
+    uint8_t m_hmove = 0;
+    uint8_t m_hmclr = 0;
+    uint8_t m_tim1t = 0;
+    uint8_t m_tim8t = 0;
+    uint8_t m_tim64t = 0;
+    uint8_t m_t1024t = 0;
 
-    private:
-        uint16_t clocks = 0;
+private:
+    uint16_t m_clocks = 0;
 };
 
